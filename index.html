@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>N-Body PWA (Rust + WASM)</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#111827" />
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #0b1020;
+      color: #e5e7eb;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      margin: 0 0 12px;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 16px;
+      background: #111827;
+      padding: 14px;
+      border-radius: 14px;
+    }
+    button, select, input {
+      font: inherit;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 0;
+    }
+    button {
+      cursor: pointer;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 1000px;
+      height: auto;
+      background: #020617;
+      border-radius: 16px;
+      border: 1px solid #243045;
+    }
+    .stats {
+      margin-top: 14px;
+      background: #111827;
+      padding: 14px;
+      border-radius: 14px;
+      line-height: 1.7;
+    }
+    .label {
+      opacity: 0.85;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>N-Body Benchmark PWA</h1>
+
+    <div class="toolbar">
+      <button id="startBtn">Start</button>
+      <button id="stopBtn">Stop</button>
+      <button id="resetBtn">Reset</button>
+
+      <label>
+        Bodies:
+        <select id="bodiesSelect">
+          <option value="100">100</option>
+          <option value="300" selected>300</option>
+          <option value="500">500</option>
+          <option value="1000">1000</option>
+        </select>
+      </label>
+
+      <label>
+        Iter/frame:
+        <select id="iterSelect">
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+          <option value="5">5</option>
+          <option value="10">10</option>
+        </select>
+      </label>
+    </div>
+
+    <canvas id="canvas" width="1000" height="700"></canvas>
+
+    <div class="stats">
+      <div><span class="label">Status:</span> <span id="status">initializing...</span></div>
+      <div><span class="label">Bodies:</span> <span id="bodiesStat">0</span></div>
+      <div><span class="label">FPS:</span> <span id="fpsStat">0</span></div>
+      <div><span class="label">Physics time / frame:</span> <span id="physicsStat">0</span> ms</div>
+      <div><span class="label">Kinetic energy:</span> <span id="energyStat">0</span></div>
+      <div><span class="label">Service Worker:</span> <span id="swStat">not registered</span></div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
