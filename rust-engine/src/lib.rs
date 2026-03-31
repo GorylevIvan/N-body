@@ -1,19 +1,23 @@
-use wasm_bindgen::prelude::*;
 use js_sys::Math;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct NBodyEngine {
     n: usize,
     width: f64,
     height: f64,
+
     g: f64,
     dt: f64,
     softening: f64,
+    bounce: f64,
 
     x: Vec<f64>,
     y: Vec<f64>,
     vx: Vec<f64>,
     vy: Vec<f64>,
+    ax: Vec<f64>,
+    ay: Vec<f64>,
     mass: Vec<f64>,
 }
 
@@ -25,29 +29,33 @@ impl NBodyEngine {
             n,
             width,
             height,
-            g: 20.0,
+
+            g: 30.0,
             dt: 0.016,
-            softening: 25.0,
+            softening: 8.0,
+            bounce: 0.85,
 
             x: vec![0.0; n],
             y: vec![0.0; n],
             vx: vec![0.0; n],
             vy: vec![0.0; n],
+            ax: vec![0.0; n],
+            ay: vec![0.0; n],
             mass: vec![1.0; n],
         };
 
-        engine.reset();
+        engine.reset_disk();
         engine
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset_disk(&mut self) {
         let cx = self.width * 0.5;
         let cy = self.height * 0.5;
-        let radius = self.width.min(self.height) * 0.35;
+        let max_r = self.width.min(self.height) * 0.36;
 
         for i in 0..self.n {
-            let angle = Math::random() * std::f64::consts::PI * 2.0;
-            let r = Math::random().sqrt() * radius;
+            let angle = Math::random() * std::f64::consts::TAU;
+            let r = Math::random().sqrt() * max_r;
 
             let px = cx + r * angle.cos();
             let py = cy + r * angle.sin();
@@ -59,21 +67,50 @@ impl NBodyEngine {
             let dy = py - cy;
             let dist = (dx * dx + dy * dy).sqrt() + 0.0001;
 
-            let tangent_x = -dy / dist;
-            let tangent_y = dx / dist;
+            let tx = -dy / dist;
+            let ty = dx / dist;
 
-            let speed = 0.3 + Math::random() * 0.7;
-            self.vx[i] = tangent_x * speed;
-            self.vy[i] = tangent_y * speed;
+            let speed = 0.4 + Math::random() * 1.2;
+            self.vx[i] = tx * speed;
+            self.vy[i] = ty * speed;
 
-            self.mass[i] = 1.0 + Math::random() * 4.0;
+            self.mass[i] = 1.0 + Math::random() * 6.0;
+            self.ax[i] = 0.0;
+            self.ay[i] = 0.0;
         }
     }
 
-    pub fn set_params(&mut self, g: f64, dt: f64, softening: f64) {
+    pub fn reset_random(&mut self) {
+        for i in 0..self.n {
+            self.x[i] = Math::random() * self.width;
+            self.y[i] = Math::random() * self.height;
+            self.vx[i] = (Math::random() - 0.5) * 2.0;
+            self.vy[i] = (Math::random() - 0.5) * 2.0;
+            self.mass[i] = 1.0 + Math::random() * 6.0;
+            self.ax[i] = 0.0;
+            self.ay[i] = 0.0;
+        }
+    }
+
+    pub fn resize_world(&mut self, width: f64, height: f64) {
+        self.width = width;
+        self.height = height;
+
+        for i in 0..self.n {
+            if self.x[i] > self.width {
+                self.x[i] = self.width;
+            }
+            if self.y[i] > self.height {
+                self.y[i] = self.height;
+            }
+        }
+    }
+
+    pub fn set_params(&mut self, g: f64, dt: f64, softening: f64, bounce: f64) {
         self.g = g;
         self.dt = dt;
-        self.softening = softening;
+        self.softening = softening.max(0.0001);
+        self.bounce = bounce.clamp(0.0, 1.0);
     }
 
     pub fn bodies_count(&self) -> usize {
@@ -82,8 +119,11 @@ impl NBodyEngine {
 
     pub fn step(&mut self) {
         let n = self.n;
-        let mut ax = vec![0.0; n];
-        let mut ay = vec![0.0; n];
+
+        for i in 0..n {
+            self.ax[i] = 0.0;
+            self.ay[i] = 0.0;
+        }
 
         for i in 0..n {
             for j in (i + 1)..n {
@@ -94,39 +134,38 @@ impl NBodyEngine {
                 let dist = dist_sq.sqrt();
                 let inv_dist3 = 1.0 / (dist_sq * dist);
 
-                let force_i = self.g * self.mass[j] * inv_dist3;
-                let force_j = self.g * self.mass[i] * inv_dist3;
+                let ai = self.g * self.mass[j] * inv_dist3;
+                let aj = self.g * self.mass[i] * inv_dist3;
 
-                ax[i] += dx * force_i;
-                ay[i] += dy * force_i;
+                self.ax[i] += dx * ai;
+                self.ay[i] += dy * ai;
 
-                ax[j] -= dx * force_j;
-                ay[j] -= dy * force_j;
+                self.ax[j] -= dx * aj;
+                self.ay[j] -= dy * aj;
             }
         }
 
         for i in 0..n {
-            self.vx[i] += ax[i] * self.dt;
-            self.vy[i] += ay[i] * self.dt;
+            self.vx[i] += self.ax[i] * self.dt;
+            self.vy[i] += self.ay[i] * self.dt;
 
             self.x[i] += self.vx[i] * self.dt * 60.0;
             self.y[i] += self.vy[i] * self.dt * 60.0;
 
             if self.x[i] < 0.0 {
                 self.x[i] = 0.0;
-                self.vx[i] *= -0.8;
-            }
-            if self.x[i] > self.width {
+                self.vx[i] *= -self.bounce;
+            } else if self.x[i] > self.width {
                 self.x[i] = self.width;
-                self.vx[i] *= -0.8;
+                self.vx[i] *= -self.bounce;
             }
+
             if self.y[i] < 0.0 {
                 self.y[i] = 0.0;
-                self.vy[i] *= -0.8;
-            }
-            if self.y[i] > self.height {
+                self.vy[i] *= -self.bounce;
+            } else if self.y[i] > self.height {
                 self.y[i] = self.height;
-                self.vy[i] *= -0.8;
+                self.vy[i] *= -self.bounce;
             }
         }
     }
@@ -137,21 +176,44 @@ impl NBodyEngine {
         }
     }
 
-    pub fn positions(&self) -> Vec<f64> {
-        let mut out = Vec::with_capacity(self.n * 2);
+    pub fn snapshot(&self) -> Vec<f64> {
+        let mut out = Vec::with_capacity(self.n * 4);
+
         for i in 0..self.n {
+            let speed = (self.vx[i] * self.vx[i] + self.vy[i] * self.vy[i]).sqrt();
             out.push(self.x[i]);
             out.push(self.y[i]);
+            out.push(self.mass[i]);
+            out.push(speed);
         }
+
         out
     }
 
-    pub fn total_kinetic_energy(&self) -> f64 {
+    pub fn kinetic_energy(&self) -> f64 {
         let mut e = 0.0;
         for i in 0..self.n {
             let v2 = self.vx[i] * self.vx[i] + self.vy[i] * self.vy[i];
             e += 0.5 * self.mass[i] * v2;
         }
         e
+    }
+
+    pub fn potential_energy(&self) -> f64 {
+        let mut e = 0.0;
+        for i in 0..self.n {
+            for j in (i + 1)..self.n {
+                let dx = self.x[j] - self.x[i];
+                let dy = self.y[j] - self.y[i];
+                let dist =
+                    (dx * dx + dy * dy + self.softening * self.softening).sqrt();
+                e -= self.g * self.mass[i] * self.mass[j] / dist;
+            }
+        }
+        e
+    }
+
+    pub fn total_energy(&self) -> f64 {
+        self.kinetic_energy() + self.potential_energy()
     }
 }

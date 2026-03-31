@@ -1,4 +1,4 @@
-const CACHE_NAME = "nbody-pwa-v1";
+const CACHE_NAME = "nbody-pwa-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -23,7 +23,9 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) return caches.delete(key);
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
         })
       )
     )

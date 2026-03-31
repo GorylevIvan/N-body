@@ -1,10 +1,11 @@
 {
-  "name": "N-Body Benchmark PWA",
-  "short_name": "NBodyPWA",
+  "name": "N-Body PWA",
+  "short_name": "NBody",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0b1020",
-  "theme_color": "#111827",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "description": "Интерактивная PWA-симуляция задачи N тел",
   "icons": [
     {
       "src": "./png/icon-192.png",
