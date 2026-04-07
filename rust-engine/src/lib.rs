@@ -205,8 +205,7 @@ impl NBodyEngine {
             for j in (i + 1)..self.n {
                 let dx = self.x[j] - self.x[i];
                 let dy = self.y[j] - self.y[i];
-                let dist =
-                    (dx * dx + dy * dy + self.softening * self.softening).sqrt();
+                let dist = (dx * dx + dy * dy + self.softening * self.softening).sqrt();
                 e -= self.g * self.mass[i] * self.mass[j] / dist;
             }
         }

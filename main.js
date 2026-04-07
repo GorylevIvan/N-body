@@ -1,11 +1,25 @@
 import init, { NBodyEngine } from "./rust-engine/pkg/rust_engine.js";
 
+const DEFAULTS = {
+  n: 400,
+  mode: "disk",
+  iterations: 2,
+  g: 30,
+  dt: 0.016,
+  softening: 8,
+  bounce: 0.85,
+  trail: 0.12,
+  baseRadius: 1.6,
+  glow: 0.65,
+};
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const resetBtn = document.getElementById("resetBtn");
+const defaultsBtn = document.getElementById("defaultsBtn");
 const installBtn = document.getElementById("installBtn");
 
 const bodiesInput = document.getElementById("bodiesInput");
@@ -18,6 +32,7 @@ const softRange = document.getElementById("softRange");
 const bounceRange = document.getElementById("bounceRange");
 const trailRange = document.getElementById("trailRange");
 const radiusRange = document.getElementById("radiusRange");
+const glowRange = document.getElementById("glowRange");
 
 const iterationsValue = document.getElementById("iterationsValue");
 const gravityValue = document.getElementById("gravityValue");
@@ -26,6 +41,7 @@ const softValue = document.getElementById("softValue");
 const bounceValue = document.getElementById("bounceValue");
 const trailValue = document.getElementById("trailValue");
 const radiusValue = document.getElementById("radiusValue");
+const glowValue = document.getElementById("glowValue");
 
 const statusStat = document.getElementById("statusStat");
 const fpsStat = document.getElementById("fpsStat");
@@ -43,7 +59,20 @@ let deferredPrompt = null;
 
 let fpsCounter = 0;
 let fpsLastTime = performance.now();
-let currentFPS = 0;
+
+function applyDefaultsToControls() {
+  bodiesInput.value = DEFAULTS.n;
+  spawnMode.value = DEFAULTS.mode;
+  iterationsRange.value = DEFAULTS.iterations;
+  gravityRange.value = DEFAULTS.g;
+  dtRange.value = DEFAULTS.dt;
+  softRange.value = DEFAULTS.softening;
+  bounceRange.value = DEFAULTS.bounce;
+  trailRange.value = DEFAULTS.trail;
+  radiusRange.value = DEFAULTS.baseRadius;
+  glowRange.value = DEFAULTS.glow;
+  syncLabels();
+}
 
 function syncLabels() {
   iterationsValue.textContent = iterationsRange.value;
@@ -53,12 +82,13 @@ function syncLabels() {
   bounceValue.textContent = Number(bounceRange.value).toFixed(2);
   trailValue.textContent = Number(trailRange.value).toFixed(2);
   radiusValue.textContent = Number(radiusRange.value).toFixed(1);
+  glowValue.textContent = Number(glowRange.value).toFixed(2);
   modeStat.textContent = spawnMode.value;
 }
 
 function getSettings() {
   return {
-    n: Math.max(10, Math.min(3000, Number(bodiesInput.value) || 400)),
+    n: Math.max(10, Math.min(3000, Number(bodiesInput.value) || DEFAULTS.n)),
     mode: spawnMode.value,
     iterations: Number(iterationsRange.value),
     g: Number(gravityRange.value),
@@ -67,6 +97,7 @@ function getSettings() {
     bounce: Number(bounceRange.value),
     trail: Number(trailRange.value),
     baseRadius: Number(radiusRange.value),
+    glow: Number(glowRange.value),
   };
 }
 
@@ -78,6 +109,7 @@ function applyEngineParams() {
 
 function createEngine() {
   const s = getSettings();
+
   engine = new NBodyEngine(s.n, canvas.width, canvas.height);
   engine.set_params(s.g, s.dt, s.softening, s.bounce);
 
@@ -95,6 +127,7 @@ function createEngine() {
 function stop() {
   running = false;
   statusStat.textContent = "stopped";
+
   if (rafId !== null) {
     cancelAnimationFrame(rafId);
     rafId = null;
@@ -114,10 +147,55 @@ function resetScene() {
   createEngine();
 }
 
+function resetToDefaults() {
+  stop();
+  applyDefaultsToControls();
+  createEngine();
+}
+
 function clearCanvasHard() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#020617";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawBackgroundGlow(glowStrength) {
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, `rgba(40, 60, 120, ${0.03 * glowStrength})`);
+  gradient.addColorStop(0.5, `rgba(20, 20, 40, ${0.02 * glowStrength})`);
+  gradient.addColorStop(1, `rgba(80, 40, 120, ${0.03 * glowStrength})`);
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function getGalaxyStyle(mass, speed, settings) {
+  const massNorm = Math.min(1, mass / 7.0);
+  const speedNorm = Math.min(1, speed / 6.0);
+
+  // Масса задаёт основной цвет:
+  // лёгкие частицы -> голубые/синие
+  // средние -> бело-голубые
+  // тяжёлые -> жёлто-белые
+  const hue = 220 - massNorm * 175;
+
+  // Скорость влияет на насыщенность и яркость
+  const saturation = 55 + speedNorm * 35 + massNorm * 10;
+  const lightness = 48 + speedNorm * 18 + massNorm * 22;
+  const alpha = 0.72 + speedNorm * 0.18;
+
+  // Масса влияет на размер
+  const radius = settings.baseRadius + Math.sqrt(mass) * 0.6;
+
+  // Свечение для более массивных и быстрых объектов
+  const glowAlpha = 0.05 + massNorm * 0.12 + speedNorm * 0.08;
+
+  return {
+    fill: `hsla(${hue}, ${Math.min(100, saturation)}%, ${Math.min(90, lightness)}%, ${Math.min(1, alpha)})`,
+    glow: `hsla(${hue}, ${Math.min(100, saturation)}%, ${Math.min(96, lightness + 8)}%, ${Math.min(0.35, glowAlpha * settings.glow)})`,
+    radius,
+    glowRadius: radius * (1.8 + settings.glow * 1.4),
+  };
 }
 
 function drawFrame(forceClear = false) {
@@ -129,10 +207,11 @@ function drawFrame(forceClear = false) {
   if (forceClear || s.trail <= 0.001) {
     clearCanvasHard();
   } else {
-    const alpha = Math.max(0.02, Math.min(1, s.trail));
-    ctx.fillStyle = `rgba(2, 6, 23, ${alpha})`;
+    ctx.fillStyle = `rgba(2, 6, 23, ${Math.max(0.02, Math.min(1, s.trail))})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
+
+  drawBackgroundGlow(s.glow);
 
   for (let i = 0; i < snapshot.length; i += 4) {
     const x = snapshot[i];
@@ -140,13 +219,18 @@ function drawFrame(forceClear = false) {
     const mass = snapshot[i + 2];
     const speed = snapshot[i + 3];
 
-    const radius = s.baseRadius + Math.sqrt(mass) * 0.55;
-    const hue = Math.max(180, 240 - Math.min(180, speed * 28));
-    const lightness = 65 + Math.min(20, mass * 2.2);
+    const style = getGalaxyStyle(mass, speed, s);
 
+    // мягкое свечение вокруг частицы
     ctx.beginPath();
-    ctx.fillStyle = `hsl(${hue}, 90%, ${lightness}%)`;
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = style.glow;
+    ctx.arc(x, y, style.glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // основная частица
+    ctx.beginPath();
+    ctx.fillStyle = style.fill;
+    ctx.arc(x, y, style.radius, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -170,10 +254,9 @@ function loop() {
   fpsCounter++;
   const now = performance.now();
   if (now - fpsLastTime >= 1000) {
-    currentFPS = fpsCounter;
+    fpsStat.textContent = String(fpsCounter);
     fpsCounter = 0;
     fpsLastTime = now;
-    fpsStat.textContent = String(currentFPS);
   }
 
   rafId = requestAnimationFrame(loop);
@@ -188,14 +271,18 @@ function setupRangeListeners() {
     bounceRange,
     trailRange,
     radiusRange,
+    glowRange,
   ].forEach((el) => {
     el.addEventListener("input", () => {
       syncLabels();
       applyEngineParams();
+      drawFrame(false);
     });
   });
 
-  spawnMode.addEventListener("change", syncLabels);
+  spawnMode.addEventListener("change", () => {
+    syncLabels();
+  });
 }
 
 function resizeCanvasToDisplaySize() {
@@ -247,7 +334,7 @@ function setupInstallPrompt() {
 
 async function boot() {
   statusStat.textContent = "loading wasm...";
-  syncLabels();
+  applyDefaultsToControls();
   await init();
 
   resizeCanvasToDisplaySize();
@@ -259,13 +346,13 @@ async function boot() {
   startBtn.addEventListener("click", start);
   stopBtn.addEventListener("click", stop);
   resetBtn.addEventListener("click", resetScene);
+  defaultsBtn.addEventListener("click", resetToDefaults);
 
   window.addEventListener("resize", () => {
     resizeCanvasToDisplaySize();
   });
 
   await registerSW();
-
   statusStat.textContent = "ready";
 }
 

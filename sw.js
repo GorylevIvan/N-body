@@ -1,4 +1,4 @@
-const CACHE_NAME = "nbody-pwa-v2";
+const CACHE_NAME = "nbody-pwa-v3";
 const ASSETS = [
   "./",
   "./index.html",

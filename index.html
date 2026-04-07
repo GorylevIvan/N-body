@@ -15,6 +15,10 @@
       --text: #e5e7eb;
       --muted: #94a3b8;
       --accent: #3b82f6;
+      --accent-2: #64748b;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --warning: #d97706;
     }
 
     * {
@@ -63,9 +67,21 @@
       background: var(--accent);
     }
 
+    .btn-secondary {
+      background: var(--accent-2);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+
+    .btn-warning {
+      background: var(--warning);
+    }
+
     .layout {
       display: grid;
-      grid-template-columns: 320px 1fr;
+      grid-template-columns: 340px 1fr;
       gap: 16px;
     }
 
@@ -131,14 +147,6 @@
       margin-top: 4px;
     }
 
-    .btn-secondary {
-      background: #334155;
-    }
-
-    .btn-danger {
-      background: #dc2626;
-    }
-
     .canvas-wrap {
       padding: 10px;
     }
@@ -195,7 +203,7 @@
     <div class="header">
       <div class="title">
         <h1>N-Body PWA</h1>
-        <p>Rust + WebAssembly + PWA. Интерактивная симуляция задачи N тел.</p>
+        <p>Rust + WebAssembly + PWA. Визуальная симуляция задачи N тел в стиле галактики.</p>
       </div>
       <button id="installBtn" class="install-btn" hidden>Установить приложение</button>
     </div>
@@ -207,7 +215,8 @@
           <div class="row">
             <button id="startBtn" class="control-btn">Start</button>
             <button id="stopBtn" class="control-btn btn-secondary">Stop</button>
-            <button id="resetBtn" class="control-btn btn-danger">Reset</button>
+            <button id="resetBtn" class="control-btn btn-danger">Reset Scene</button>
+            <button id="defaultsBtn" class="control-btn btn-warning">Default Settings</button>
           </div>
         </div>
 
@@ -244,19 +253,19 @@
           </div>
 
           <div class="field">
-            <label for="dtRange">dt</label>
+            <label for="dtRange">Шаг времени</label>
             <input id="dtRange" type="range" min="0.001" max="0.05" step="0.001" value="0.016" />
             <div class="value" id="dtValue">0.016</div>
           </div>
 
           <div class="field">
-            <label for="softRange">Softening</label>
+            <label for="softRange">Смягчение гравитации</label>
             <input id="softRange" type="range" min="1" max="40" step="1" value="8" />
             <div class="value" id="softValue">8</div>
           </div>
 
           <div class="field">
-            <label for="bounceRange">Bounce</label>
+            <label for="bounceRange">Упругость границ</label>
             <input id="bounceRange" type="range" min="0" max="1" step="0.01" value="0.85" />
             <div class="value" id="bounceValue">0.85</div>
           </div>
@@ -266,20 +275,26 @@
           <h3 class="group-title">Визуализация</h3>
 
           <div class="field">
-            <label for="trailRange">Хвосты / затухание</label>
-            <input id="trailRange" type="range" min="0" max="1" step="0.01" value="0.18" />
-            <div class="value" id="trailValue">0.18</div>
+            <label for="trailRange">Длина следа</label>
+            <input id="trailRange" type="range" min="0" max="1" step="0.01" value="0.12" />
+            <div class="value" id="trailValue">0.12</div>
           </div>
 
           <div class="field">
-            <label for="radiusRange">Базовый радиус точки</label>
-            <input id="radiusRange" type="range" min="1" max="6" step="0.1" value="1.8" />
-            <div class="value" id="radiusValue">1.8</div>
+            <label for="radiusRange">Размер частиц</label>
+            <input id="radiusRange" type="range" min="1" max="6" step="0.1" value="1.6" />
+            <div class="value" id="radiusValue">1.6</div>
+          </div>
+
+          <div class="field">
+            <label for="glowRange">Свечение ядра</label>
+            <input id="glowRange" type="range" min="0" max="1.5" step="0.01" value="0.65" />
+            <div class="value" id="glowValue">0.65</div>
           </div>
         </div>
 
         <div class="footer-note">
-          Изменение количества тел применяется после Reset.
+          Reset Scene пересоздаёт тела. Default Settings возвращает все параметры к стандартным значениям и пересоздаёт сцену.
         </div>
       </div>
 
