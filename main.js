@@ -2,7 +2,7 @@ import init, { NBodyEngine } from "./rust-engine/pkg/rust_engine.js";
 
 const DEFAULTS = {
   n: 400,
-  mode: "disk",
+  preset: "galaxy",
   iterations: 2,
   g: 30,
   dt: 0.016,
@@ -20,10 +20,11 @@ const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const resetBtn = document.getElementById("resetBtn");
 const defaultsBtn = document.getElementById("defaultsBtn");
+const fullscreenBtn = document.getElementById("fullscreenBtn");
 const installBtn = document.getElementById("installBtn");
 
+const presetSelect = document.getElementById("presetSelect");
 const bodiesInput = document.getElementById("bodiesInput");
-const spawnMode = document.getElementById("spawnMode");
 
 const iterationsRange = document.getElementById("iterationsRange");
 const gravityRange = document.getElementById("gravityRange");
@@ -50,7 +51,7 @@ const physicsStat = document.getElementById("physicsStat");
 const kineticStat = document.getElementById("kineticStat");
 const totalEnergyStat = document.getElementById("totalEnergyStat");
 const swStat = document.getElementById("swStat");
-const modeStat = document.getElementById("modeStat");
+const presetStat = document.getElementById("presetStat");
 
 let engine = null;
 let running = false;
@@ -62,7 +63,7 @@ let fpsLastTime = performance.now();
 
 function applyDefaultsToControls() {
   bodiesInput.value = DEFAULTS.n;
-  spawnMode.value = DEFAULTS.mode;
+  presetSelect.value = DEFAULTS.preset;
   iterationsRange.value = DEFAULTS.iterations;
   gravityRange.value = DEFAULTS.g;
   dtRange.value = DEFAULTS.dt;
@@ -83,13 +84,13 @@ function syncLabels() {
   trailValue.textContent = Number(trailRange.value).toFixed(2);
   radiusValue.textContent = Number(radiusRange.value).toFixed(1);
   glowValue.textContent = Number(glowRange.value).toFixed(2);
-  modeStat.textContent = spawnMode.value;
+  presetStat.textContent = presetSelect.value;
 }
 
 function getSettings() {
   return {
     n: Math.max(10, Math.min(3000, Number(bodiesInput.value) || DEFAULTS.n)),
-    mode: spawnMode.value,
+    preset: presetSelect.value,
     iterations: Number(iterationsRange.value),
     g: Number(gravityRange.value),
     dt: Number(dtRange.value),
@@ -99,6 +100,27 @@ function getSettings() {
     baseRadius: Number(radiusRange.value),
     glow: Number(glowRange.value),
   };
+}
+
+function applyPreset() {
+  if (!engine) return;
+  const s = getSettings();
+
+  switch (s.preset) {
+    case "collapse":
+      engine.reset_collapse();
+      break;
+    case "explosion":
+      engine.reset_explosion();
+      break;
+    case "two-galaxies":
+      engine.reset_two_galaxies();
+      break;
+    case "galaxy":
+    default:
+      engine.reset_galaxy();
+      break;
+  }
 }
 
 function applyEngineParams() {
@@ -112,12 +134,7 @@ function createEngine() {
 
   engine = new NBodyEngine(s.n, canvas.width, canvas.height);
   engine.set_params(s.g, s.dt, s.softening, s.bounce);
-
-  if (s.mode === "random") {
-    engine.reset_random();
-  } else {
-    engine.reset_disk();
-  }
+  applyPreset();
 
   bodiesStat.textContent = String(s.n);
   statusStat.textContent = "ready";
@@ -153,6 +170,20 @@ function resetToDefaults() {
   createEngine();
 }
 
+async function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+      fullscreenBtn.textContent = "Exit Fullscreen";
+    } else {
+      await document.exitFullscreen();
+      fullscreenBtn.textContent = "Fullscreen";
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 function clearCanvasHard() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#020617";
@@ -173,21 +204,12 @@ function getGalaxyStyle(mass, speed, settings) {
   const massNorm = Math.min(1, mass / 7.0);
   const speedNorm = Math.min(1, speed / 6.0);
 
-  // Масса задаёт основной цвет:
-  // лёгкие частицы -> голубые/синие
-  // средние -> бело-голубые
-  // тяжёлые -> жёлто-белые
   const hue = 220 - massNorm * 175;
-
-  // Скорость влияет на насыщенность и яркость
   const saturation = 55 + speedNorm * 35 + massNorm * 10;
   const lightness = 48 + speedNorm * 18 + massNorm * 22;
   const alpha = 0.72 + speedNorm * 0.18;
 
-  // Масса влияет на размер
   const radius = settings.baseRadius + Math.sqrt(mass) * 0.6;
-
-  // Свечение для более массивных и быстрых объектов
   const glowAlpha = 0.05 + massNorm * 0.12 + speedNorm * 0.08;
 
   return {
@@ -221,13 +243,11 @@ function drawFrame(forceClear = false) {
 
     const style = getGalaxyStyle(mass, speed, s);
 
-    // мягкое свечение вокруг частицы
     ctx.beginPath();
     ctx.fillStyle = style.glow;
     ctx.arc(x, y, style.glowRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // основная частица
     ctx.beginPath();
     ctx.fillStyle = style.fill;
     ctx.arc(x, y, style.radius, 0, Math.PI * 2);
@@ -280,9 +300,7 @@ function setupRangeListeners() {
     });
   });
 
-  spawnMode.addEventListener("change", () => {
-    syncLabels();
-  });
+  presetSelect.addEventListener("change", syncLabels);
 }
 
 function resizeCanvasToDisplaySize() {
@@ -347,6 +365,15 @@ async function boot() {
   stopBtn.addEventListener("click", stop);
   resetBtn.addEventListener("click", resetScene);
   defaultsBtn.addEventListener("click", resetToDefaults);
+  fullscreenBtn.addEventListener("click", toggleFullscreen);
+
+  document.addEventListener("fullscreenchange", () => {
+    fullscreenBtn.textContent = document.fullscreenElement ? "Exit Fullscreen" : "Fullscreen";
+    setTimeout(() => {
+      resizeCanvasToDisplaySize();
+      drawFrame(true);
+    }, 50);
+  });
 
   window.addEventListener("resize", () => {
     resizeCanvasToDisplaySize();

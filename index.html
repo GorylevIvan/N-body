@@ -17,13 +17,11 @@
       --accent: #3b82f6;
       --accent-2: #64748b;
       --danger: #dc2626;
-      --success: #16a34a;
       --warning: #d97706;
+      --success: #16a34a;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -33,7 +31,7 @@
     }
 
     .app {
-      max-width: 1280px;
+      max-width: 1320px;
       margin: 0 auto;
       padding: 18px;
     }
@@ -67,21 +65,14 @@
       background: var(--accent);
     }
 
-    .btn-secondary {
-      background: var(--accent-2);
-    }
-
-    .btn-danger {
-      background: var(--danger);
-    }
-
-    .btn-warning {
-      background: var(--warning);
-    }
+    .btn-secondary { background: var(--accent-2); }
+    .btn-danger { background: var(--danger); }
+    .btn-warning { background: var(--warning); }
+    .btn-success { background: var(--success); }
 
     .layout {
       display: grid;
-      grid-template-columns: 340px 1fr;
+      grid-template-columns: 360px 1fr;
       gap: 16px;
     }
 
@@ -203,7 +194,7 @@
     <div class="header">
       <div class="title">
         <h1>N-Body PWA</h1>
-        <p>Rust + WebAssembly + PWA. Визуальная симуляция задачи N тел в стиле галактики.</p>
+        <p>Rust + WebAssembly + PWA. Полноэкранный режим и сценарии симуляции.</p>
       </div>
       <button id="installBtn" class="install-btn" hidden>Установить приложение</button>
     </div>
@@ -217,23 +208,26 @@
             <button id="stopBtn" class="control-btn btn-secondary">Stop</button>
             <button id="resetBtn" class="control-btn btn-danger">Reset Scene</button>
             <button id="defaultsBtn" class="control-btn btn-warning">Default Settings</button>
+            <button id="fullscreenBtn" class="control-btn btn-success">Fullscreen</button>
           </div>
         </div>
 
         <div>
-          <h3 class="group-title">Сцена</h3>
+          <h3 class="group-title">Сценарий</h3>
+
+          <div class="field">
+            <label for="presetSelect">Пресет симуляции</label>
+            <select id="presetSelect">
+              <option value="galaxy" selected>Галактика</option>
+              <option value="collapse">Коллапс</option>
+              <option value="explosion">Взрыв</option>
+              <option value="two-galaxies">Две галактики</option>
+            </select>
+          </div>
 
           <div class="field">
             <label for="bodiesInput">Количество тел</label>
             <input id="bodiesInput" type="number" min="10" max="3000" step="10" value="400" />
-          </div>
-
-          <div class="field">
-            <label for="spawnMode">Тип инициализации</label>
-            <select id="spawnMode">
-              <option value="disk" selected>Круговой кластер</option>
-              <option value="random">Случайное распределение</option>
-            </select>
           </div>
 
           <div class="field">
@@ -247,7 +241,7 @@
           <h3 class="group-title">Параметры физики</h3>
 
           <div class="field">
-            <label for="gravityRange">G (гравитация)</label>
+            <label for="gravityRange">Сила притяжения</label>
             <input id="gravityRange" type="range" min="1" max="100" step="1" value="30" />
             <div class="value" id="gravityValue">30</div>
           </div>
@@ -287,14 +281,14 @@
           </div>
 
           <div class="field">
-            <label for="glowRange">Свечение ядра</label>
+            <label for="glowRange">Свечение</label>
             <input id="glowRange" type="range" min="0" max="1.5" step="0.01" value="0.65" />
             <div class="value" id="glowValue">0.65</div>
           </div>
         </div>
 
         <div class="footer-note">
-          Reset Scene пересоздаёт тела. Default Settings возвращает все параметры к стандартным значениям и пересоздаёт сцену.
+          Fullscreen открывает симуляцию на весь экран. Preset меняется после Reset Scene или Default Settings.
         </div>
       </div>
 
@@ -331,8 +325,8 @@
             <div class="v" id="swStat">not registered</div>
           </div>
           <div class="stat">
-            <div class="k">Режим запуска</div>
-            <div class="v" id="modeStat">disk</div>
+            <div class="k">Сценарий</div>
+            <div class="v" id="presetStat">galaxy</div>
           </div>
         </div>
       </div>

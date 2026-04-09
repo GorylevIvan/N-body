@@ -44,14 +44,14 @@ impl NBodyEngine {
             mass: vec![1.0; n],
         };
 
-        engine.reset_disk();
+        engine.reset_galaxy();
         engine
     }
 
-    pub fn reset_disk(&mut self) {
+    pub fn reset_galaxy(&mut self) {
         let cx = self.width * 0.5;
         let cy = self.height * 0.5;
-        let max_r = self.width.min(self.height) * 0.36;
+        let max_r = self.width.min(self.height) * 0.34;
 
         for i in 0..self.n {
             let angle = Math::random() * std::f64::consts::TAU;
@@ -70,7 +70,7 @@ impl NBodyEngine {
             let tx = -dy / dist;
             let ty = dx / dist;
 
-            let speed = 0.4 + Math::random() * 1.2;
+            let speed = 0.45 + Math::random() * 1.2;
             self.vx[i] = tx * speed;
             self.vy[i] = ty * speed;
 
@@ -80,13 +80,112 @@ impl NBodyEngine {
         }
     }
 
-    pub fn reset_random(&mut self) {
+    pub fn reset_collapse(&mut self) {
+        let cx = self.width * 0.5;
+        let cy = self.height * 0.5;
+
         for i in 0..self.n {
             self.x[i] = Math::random() * self.width;
             self.y[i] = Math::random() * self.height;
-            self.vx[i] = (Math::random() - 0.5) * 2.0;
-            self.vy[i] = (Math::random() - 0.5) * 2.0;
-            self.mass[i] = 1.0 + Math::random() * 6.0;
+
+            let dx = cx - self.x[i];
+            let dy = cy - self.y[i];
+            let dist = (dx * dx + dy * dy).sqrt() + 0.0001;
+
+            let nx = dx / dist;
+            let ny = dy / dist;
+
+            let speed = 0.25 + Math::random() * 1.0;
+            self.vx[i] = nx * speed;
+            self.vy[i] = ny * speed;
+
+            self.mass[i] = 1.0 + Math::random() * 5.0;
+            self.ax[i] = 0.0;
+            self.ay[i] = 0.0;
+        }
+    }
+
+    pub fn reset_explosion(&mut self) {
+        let cx = self.width * 0.5;
+        let cy = self.height * 0.5;
+        let start_r = self.width.min(self.height) * 0.08;
+
+        for i in 0..self.n {
+            let angle = Math::random() * std::f64::consts::TAU;
+            let r = Math::random().sqrt() * start_r;
+
+            self.x[i] = cx + r * angle.cos();
+            self.y[i] = cy + r * angle.sin();
+
+            let dir_x = angle.cos();
+            let dir_y = angle.sin();
+
+            let speed = 1.0 + Math::random() * 2.8;
+            self.vx[i] = dir_x * speed;
+            self.vy[i] = dir_y * speed;
+
+            self.mass[i] = 1.0 + Math::random() * 4.0;
+            self.ax[i] = 0.0;
+            self.ay[i] = 0.0;
+        }
+    }
+
+    pub fn reset_two_galaxies(&mut self) {
+        let half = self.n / 2;
+
+        let left_cx = self.width * 0.33;
+        let right_cx = self.width * 0.67;
+        let cy = self.height * 0.5;
+        let radius = self.width.min(self.height) * 0.18;
+
+        for i in 0..half {
+            let angle = Math::random() * std::f64::consts::TAU;
+            let r = Math::random().sqrt() * radius;
+
+            let px = left_cx + r * angle.cos();
+            let py = cy + r * angle.sin();
+
+            self.x[i] = px;
+            self.y[i] = py;
+
+            let dx = px - left_cx;
+            let dy = py - cy;
+            let dist = (dx * dx + dy * dy).sqrt() + 0.0001;
+
+            let tx = -dy / dist;
+            let ty = dx / dist;
+
+            let orbit_speed = 0.35 + Math::random() * 0.8;
+            self.vx[i] = tx * orbit_speed + 0.55;
+            self.vy[i] = ty * orbit_speed;
+
+            self.mass[i] = 1.0 + Math::random() * 5.0;
+            self.ax[i] = 0.0;
+            self.ay[i] = 0.0;
+        }
+
+        for i in half..self.n {
+            let angle = Math::random() * std::f64::consts::TAU;
+            let r = Math::random().sqrt() * radius;
+
+            let px = right_cx + r * angle.cos();
+            let py = cy + r * angle.sin();
+
+            self.x[i] = px;
+            self.y[i] = py;
+
+            let dx = px - right_cx;
+            let dy = py - cy;
+            let dist = (dx * dx + dy * dy).sqrt() + 0.0001;
+
+            let tx = dy / dist;
+            let ty = -dx / dist;
+
+            let orbit_speed = 0.35 + Math::random() * 0.8;
+            self.vx[i] = tx * orbit_speed - 0.55;
+            self.vy[i] = ty * orbit_speed;
+
+            self.mass[i] = 1.0 + Math::random() * 5.0;
             self.ax[i] = 0.0;
             self.ay[i] = 0.0;
         }
