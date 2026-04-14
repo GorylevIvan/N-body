@@ -16,12 +16,14 @@ const DEFAULTS = {
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+const fpsCanvas = document.getElementById("fpsCanvas");
+const fpsCtx = fpsCanvas.getContext("2d");
+
 const startBtn = document.getElementById("startBtn");
-const stopBtn = document.getElementById("stopBtn");
+const pauseBtn = document.getElementById("pauseBtn");
 const resetBtn = document.getElementById("resetBtn");
 const defaultsBtn = document.getElementById("defaultsBtn");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
-const installBtn = document.getElementById("installBtn");
 
 const presetSelect = document.getElementById("presetSelect");
 const bodiesInput = document.getElementById("bodiesInput");
@@ -56,10 +58,11 @@ const presetStat = document.getElementById("presetStat");
 let engine = null;
 let running = false;
 let rafId = null;
-let deferredPrompt = null;
 
 let fpsCounter = 0;
 let fpsLastTime = performance.now();
+let currentFPS = 0;
+const fpsHistory = [];
 
 function applyDefaultsToControls() {
   bodiesInput.value = DEFAULTS.n;
@@ -131,19 +134,26 @@ function applyEngineParams() {
 
 function createEngine() {
   const s = getSettings();
-
   engine = new NBodyEngine(s.n, canvas.width, canvas.height);
   engine.set_params(s.g, s.dt, s.softening, s.bounce);
   applyPreset();
 
   bodiesStat.textContent = String(s.n);
-  statusStat.textContent = "ready";
+  statusStat.textContent = "готово";
   drawFrame(true);
 }
 
-function stop() {
+function startSimulation() {
+  if (!engine) createEngine();
+  if (running) return;
+  running = true;
+  statusStat.textContent = "запущено";
+  loop();
+}
+
+function pauseSimulation() {
   running = false;
-  statusStat.textContent = "stopped";
+  statusStat.textContent = "пауза";
 
   if (rafId !== null) {
     cancelAnimationFrame(rafId);
@@ -151,33 +161,25 @@ function stop() {
   }
 }
 
-function start() {
-  if (!engine) createEngine();
-  if (running) return;
-  running = true;
-  statusStat.textContent = "running";
-  loop();
-}
-
-function resetScene() {
-  stop();
+function resetSystem() {
+  pauseSimulation();
   createEngine();
 }
 
-function resetToDefaults() {
-  stop();
+function resetSettings() {
+  pauseSimulation();
   applyDefaultsToControls();
   createEngine();
 }
 
 async function toggleFullscreen() {
   try {
+    const simPanel = document.querySelector(".sim-panel");
+
     if (!document.fullscreenElement) {
-      await document.documentElement.requestFullscreen();
-      fullscreenBtn.textContent = "Exit Fullscreen";
+      await simPanel.requestFullscreen();
     } else {
       await document.exitFullscreen();
-      fullscreenBtn.textContent = "Fullscreen";
     }
   } catch (err) {
     console.error(err);
@@ -186,15 +188,15 @@ async function toggleFullscreen() {
 
 function clearCanvasHard() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#020617";
+  ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawBackgroundGlow(glowStrength) {
   const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, `rgba(40, 60, 120, ${0.03 * glowStrength})`);
-  gradient.addColorStop(0.5, `rgba(20, 20, 40, ${0.02 * glowStrength})`);
-  gradient.addColorStop(1, `rgba(80, 40, 120, ${0.03 * glowStrength})`);
+  gradient.addColorStop(0, `rgba(60, 20, 120, ${0.04 * glowStrength})`);
+  gradient.addColorStop(0.5, `rgba(15, 10, 30, ${0.025 * glowStrength})`);
+  gradient.addColorStop(1, `rgba(25, 60, 120, ${0.04 * glowStrength})`);
 
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -229,7 +231,7 @@ function drawFrame(forceClear = false) {
   if (forceClear || s.trail <= 0.001) {
     clearCanvasHard();
   } else {
-    ctx.fillStyle = `rgba(2, 6, 23, ${Math.max(0.02, Math.min(1, s.trail))})`;
+    ctx.fillStyle = `rgba(0, 0, 0, ${Math.max(0.02, Math.min(1, s.trail))})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
@@ -258,6 +260,46 @@ function drawFrame(forceClear = false) {
   totalEnergyStat.textContent = engine.total_energy().toFixed(2);
 }
 
+function drawFpsGraph() {
+  const w = fpsCanvas.width;
+  const h = fpsCanvas.height;
+
+  fpsCtx.clearRect(0, 0, w, h);
+  fpsCtx.fillStyle = "#21032f";
+  fpsCtx.fillRect(0, 0, w, h);
+
+  fpsCtx.strokeStyle = "rgba(255,255,255,0.08)";
+  fpsCtx.lineWidth = 1;
+
+  for (let i = 1; i <= 3; i++) {
+    const y = (h / 4) * i;
+    fpsCtx.beginPath();
+    fpsCtx.moveTo(0, y);
+    fpsCtx.lineTo(w, y);
+    fpsCtx.stroke();
+  }
+
+  if (fpsHistory.length < 2) return;
+
+  const maxFps = Math.max(60, ...fpsHistory);
+  fpsCtx.beginPath();
+  fpsCtx.strokeStyle = "#38bdf8";
+  fpsCtx.lineWidth = 2;
+
+  fpsHistory.forEach((fps, i) => {
+    const x = (i / (fpsHistory.length - 1)) * w;
+    const y = h - (fps / maxFps) * (h - 10) - 5;
+
+    if (i === 0) {
+      fpsCtx.moveTo(x, y);
+    } else {
+      fpsCtx.lineTo(x, y);
+    }
+  });
+
+  fpsCtx.stroke();
+}
+
 function loop() {
   if (!running || !engine) return;
 
@@ -273,8 +315,15 @@ function loop() {
 
   fpsCounter++;
   const now = performance.now();
+
   if (now - fpsLastTime >= 1000) {
-    fpsStat.textContent = String(fpsCounter);
+    currentFPS = fpsCounter;
+    fpsStat.textContent = String(currentFPS);
+
+    fpsHistory.push(currentFPS);
+    if (fpsHistory.length > 60) fpsHistory.shift();
+    drawFpsGraph();
+
     fpsCounter = 0;
     fpsLastTime = now;
   }
@@ -282,7 +331,7 @@ function loop() {
   rafId = requestAnimationFrame(loop);
 }
 
-function setupRangeListeners() {
+function setupListeners() {
   [
     iterationsRange,
     gravityRange,
@@ -301,12 +350,29 @@ function setupRangeListeners() {
   });
 
   presetSelect.addEventListener("change", syncLabels);
+
+  startBtn.addEventListener("click", startSimulation);
+  pauseBtn.addEventListener("click", pauseSimulation);
+  resetBtn.addEventListener("click", resetSystem);
+  defaultsBtn.addEventListener("click", resetSettings);
+  fullscreenBtn.addEventListener("click", toggleFullscreen);
+
+  document.addEventListener("fullscreenchange", () => {
+    setTimeout(() => {
+      resizeCanvasToDisplaySize();
+      drawFrame(true);
+    }, 50);
+  });
+
+  window.addEventListener("resize", () => {
+    resizeCanvasToDisplaySize();
+  });
 }
 
 function resizeCanvasToDisplaySize() {
   const rect = canvas.getBoundingClientRect();
-  const width = Math.max(600, Math.floor(rect.width));
-  const height = Math.floor(width * 0.7);
+  const width = Math.max(640, Math.floor(rect.width));
+  const height = Math.max(480, Math.floor(rect.height));
 
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
@@ -334,22 +400,6 @@ async function registerSW() {
   }
 }
 
-function setupInstallPrompt() {
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredPrompt = event;
-    installBtn.hidden = false;
-  });
-
-  installBtn.addEventListener("click", async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    installBtn.hidden = true;
-  });
-}
-
 async function boot() {
   statusStat.textContent = "loading wasm...";
   applyDefaultsToControls();
@@ -357,30 +407,11 @@ async function boot() {
 
   resizeCanvasToDisplaySize();
   createEngine();
-
-  setupRangeListeners();
-  setupInstallPrompt();
-
-  startBtn.addEventListener("click", start);
-  stopBtn.addEventListener("click", stop);
-  resetBtn.addEventListener("click", resetScene);
-  defaultsBtn.addEventListener("click", resetToDefaults);
-  fullscreenBtn.addEventListener("click", toggleFullscreen);
-
-  document.addEventListener("fullscreenchange", () => {
-    fullscreenBtn.textContent = document.fullscreenElement ? "Exit Fullscreen" : "Fullscreen";
-    setTimeout(() => {
-      resizeCanvasToDisplaySize();
-      drawFrame(true);
-    }, 50);
-  });
-
-  window.addEventListener("resize", () => {
-    resizeCanvasToDisplaySize();
-  });
-
+  drawFpsGraph();
+  setupListeners();
   await registerSW();
-  statusStat.textContent = "ready";
+
+  statusStat.textContent = "готово";
 }
 
 boot();
