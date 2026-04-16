@@ -8,7 +8,7 @@ const DEFAULTS = {
   dt: 0.016,
   softening: 8,
   bounce: 0.85,
-  trail: 0.12,
+  trail: 0.72,
   baseRadius: 1.6,
   glow: 0.65,
 };
@@ -48,6 +48,7 @@ const glowValue = document.getElementById("glowValue");
 
 const statusStat = document.getElementById("statusStat");
 const fpsStat = document.getElementById("fpsStat");
+const fpsBig = document.getElementById("fpsBig");
 const bodiesStat = document.getElementById("bodiesStat");
 const physicsStat = document.getElementById("physicsStat");
 const kineticStat = document.getElementById("kineticStat");
@@ -107,6 +108,7 @@ function getSettings() {
 
 function applyPreset() {
   if (!engine) return;
+
   const s = getSettings();
 
   switch (s.preset) {
@@ -128,12 +130,14 @@ function applyPreset() {
 
 function applyEngineParams() {
   if (!engine) return;
+
   const s = getSettings();
   engine.set_params(s.g, s.dt, s.softening, s.bounce);
 }
 
 function createEngine() {
   const s = getSettings();
+
   engine = new NBodyEngine(s.n, canvas.width, canvas.height);
   engine.set_params(s.g, s.dt, s.softening, s.bounce);
   applyPreset();
@@ -143,9 +147,19 @@ function createEngine() {
   drawFrame(true);
 }
 
+function refreshPresetImmediately() {
+  if (!engine) return;
+
+  pauseSimulation();
+  applyEngineParams();
+  applyPreset();
+  drawFrame(true);
+}
+
 function startSimulation() {
   if (!engine) createEngine();
   if (running) return;
+
   running = true;
   statusStat.textContent = "запущено";
   loop();
@@ -182,7 +196,7 @@ async function toggleFullscreen() {
       await document.exitFullscreen();
     }
   } catch (err) {
-    console.error(err);
+    console.error("Ошибка fullscreen:", err);
   }
 }
 
@@ -202,7 +216,7 @@ function drawBackgroundGlow(glowStrength) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-function getGalaxyStyle(mass, speed, settings) {
+function getParticleStyle(mass, speed, settings) {
   const massNorm = Math.min(1, mass / 7.0);
   const speedNorm = Math.min(1, speed / 6.0);
 
@@ -222,16 +236,27 @@ function getGalaxyStyle(mass, speed, settings) {
   };
 }
 
+/*
+  trail — длина следа.
+  Чем больше значение, тем длиннее должен оставаться след.
+  Значит затемнение кадра должно быть МЕНЬШЕ.
+*/
+function getTrailFadeAlpha(trailLength) {
+  const t = Math.max(0, Math.min(1, trailLength));
+  return 0.22 - t * 0.20; // диапазон примерно от 0.22 до 0.02
+}
+
 function drawFrame(forceClear = false) {
   if (!engine) return;
 
   const s = getSettings();
   const snapshot = engine.snapshot();
 
-  if (forceClear || s.trail <= 0.001) {
+  if (forceClear) {
     clearCanvasHard();
   } else {
-    ctx.fillStyle = `rgba(0, 0, 0, ${Math.max(0.02, Math.min(1, s.trail))})`;
+    const fadeAlpha = getTrailFadeAlpha(s.trail);
+    ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
@@ -243,7 +268,7 @@ function drawFrame(forceClear = false) {
     const mass = snapshot[i + 2];
     const speed = snapshot[i + 3];
 
-    const style = getGalaxyStyle(mass, speed, s);
+    const style = getParticleStyle(mass, speed, s);
 
     ctx.beginPath();
     ctx.fillStyle = style.glow;
@@ -265,39 +290,98 @@ function drawFpsGraph() {
   const h = fpsCanvas.height;
 
   fpsCtx.clearRect(0, 0, w, h);
-  fpsCtx.fillStyle = "#21032f";
+
+  const bg = fpsCtx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, "rgba(34, 197, 255, 0.05)");
+  bg.addColorStop(0.5, "rgba(167, 139, 250, 0.03)");
+  bg.addColorStop(1, "rgba(10, 8, 30, 0.0)");
+  fpsCtx.fillStyle = bg;
   fpsCtx.fillRect(0, 0, w, h);
 
   fpsCtx.strokeStyle = "rgba(255,255,255,0.08)";
   fpsCtx.lineWidth = 1;
 
-  for (let i = 1; i <= 3; i++) {
-    const y = (h / 4) * i;
+  const labelValues = [0, 30, 60, 90];
+  const axisMax = 100;
+
+  for (let i = 1; i <= 4; i++) {
+    const y = (h / 5) * i;
     fpsCtx.beginPath();
     fpsCtx.moveTo(0, y);
     fpsCtx.lineTo(w, y);
     fpsCtx.stroke();
   }
 
+  fpsCtx.fillStyle = "rgba(255,255,255,0.35)";
+  fpsCtx.font = "11px Inter, system-ui, sans-serif";
+
+  labelValues.forEach((val) => {
+    const y = h - (val / axisMax) * (h - 16) - 8;
+    fpsCtx.fillText(val.toString(), 6, y);
+  });
+
   if (fpsHistory.length < 2) return;
 
   const maxFps = Math.max(60, ...fpsHistory);
-  fpsCtx.beginPath();
-  fpsCtx.strokeStyle = "#38bdf8";
-  fpsCtx.lineWidth = 2;
+  const normalizedMax = Math.max(axisMax, maxFps);
 
-  fpsHistory.forEach((fps, i) => {
+  const points = fpsHistory.map((fps, i) => {
     const x = (i / (fpsHistory.length - 1)) * w;
-    const y = h - (fps / maxFps) * (h - 10) - 5;
-
-    if (i === 0) {
-      fpsCtx.moveTo(x, y);
-    } else {
-      fpsCtx.lineTo(x, y);
-    }
+    const y = h - (fps / normalizedMax) * (h - 16) - 8;
+    return { x, y };
   });
 
+  const areaGradient = fpsCtx.createLinearGradient(0, 0, 0, h);
+  areaGradient.addColorStop(0, "rgba(56, 189, 248, 0.28)");
+  areaGradient.addColorStop(0.55, "rgba(167, 139, 250, 0.14)");
+  areaGradient.addColorStop(1, "rgba(167, 139, 250, 0.01)");
+
+  fpsCtx.beginPath();
+  fpsCtx.moveTo(points[0].x, h);
+  for (const p of points) {
+    fpsCtx.lineTo(p.x, p.y);
+  }
+  fpsCtx.lineTo(points[points.length - 1].x, h);
+  fpsCtx.closePath();
+  fpsCtx.fillStyle = areaGradient;
+  fpsCtx.fill();
+
+  fpsCtx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (i === 0) fpsCtx.moveTo(p.x, p.y);
+    else fpsCtx.lineTo(p.x, p.y);
+  }
+  fpsCtx.strokeStyle = "rgba(56, 189, 248, 0.30)";
+  fpsCtx.lineWidth = 8;
+  fpsCtx.lineCap = "round";
+  fpsCtx.lineJoin = "round";
   fpsCtx.stroke();
+
+  fpsCtx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (i === 0) fpsCtx.moveTo(p.x, p.y);
+    else fpsCtx.lineTo(p.x, p.y);
+  }
+
+  const lineGradient = fpsCtx.createLinearGradient(0, 0, w, 0);
+  lineGradient.addColorStop(0, "#67e8f9");
+  lineGradient.addColorStop(0.5, "#60a5fa");
+  lineGradient.addColorStop(1, "#c084fc");
+
+  fpsCtx.strokeStyle = lineGradient;
+  fpsCtx.lineWidth = 3;
+  fpsCtx.lineCap = "round";
+  fpsCtx.lineJoin = "round";
+  fpsCtx.stroke();
+
+  for (const p of points) {
+    fpsCtx.beginPath();
+    fpsCtx.fillStyle = "rgba(255,255,255,0.75)";
+    fpsCtx.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
+    fpsCtx.fill();
+  }
 }
 
 function loop() {
@@ -310,7 +394,6 @@ function loop() {
   const t1 = performance.now();
 
   drawFrame(false);
-
   physicsStat.textContent = `${(t1 - t0).toFixed(3)} ms`;
 
   fpsCounter++;
@@ -318,10 +401,13 @@ function loop() {
 
   if (now - fpsLastTime >= 1000) {
     currentFPS = fpsCounter;
+
     fpsStat.textContent = String(currentFPS);
+    fpsBig.textContent = `${currentFPS} FPS`;
 
     fpsHistory.push(currentFPS);
-    if (fpsHistory.length > 60) fpsHistory.shift();
+    if (fpsHistory.length > 80) fpsHistory.shift();
+
     drawFpsGraph();
 
     fpsCounter = 0;
@@ -338,7 +424,6 @@ function setupListeners() {
     dtRange,
     softRange,
     bounceRange,
-    trailRange,
     radiusRange,
     glowRange,
   ].forEach((el) => {
@@ -349,7 +434,18 @@ function setupListeners() {
     });
   });
 
-  presetSelect.addEventListener("change", syncLabels);
+  trailRange.addEventListener("input", () => {
+    syncLabels();
+  });
+
+  presetSelect.addEventListener("change", () => {
+    syncLabels();
+    refreshPresetImmediately();
+  });
+
+  bodiesInput.addEventListener("change", () => {
+    resetSystem();
+  });
 
   startBtn.addEventListener("click", startSimulation);
   pauseBtn.addEventListener("click", pauseSimulation);
@@ -383,6 +479,16 @@ function resizeCanvasToDisplaySize() {
       drawFrame(true);
     }
   }
+
+  const fpsRect = fpsCanvas.getBoundingClientRect();
+  const fpsWidth = Math.max(180, Math.floor(fpsRect.width));
+  const fpsHeight = Math.max(140, Math.floor(fpsRect.height));
+
+  if (fpsCanvas.width !== fpsWidth || fpsCanvas.height !== fpsHeight) {
+    fpsCanvas.width = fpsWidth;
+    fpsCanvas.height = fpsHeight;
+    drawFpsGraph();
+  }
 }
 
 async function registerSW() {
@@ -395,13 +501,15 @@ async function registerSW() {
     const reg = await navigator.serviceWorker.register("./sw.js");
     swStat.textContent = reg.active ? "active" : "registered";
   } catch (err) {
-    console.error(err);
+    console.error("Ошибка service worker:", err);
     swStat.textContent = "error";
   }
 }
 
 async function boot() {
   statusStat.textContent = "loading wasm...";
+  fpsBig.textContent = "0 FPS";
+
   applyDefaultsToControls();
   await init();
 
