@@ -1,4 +1,11 @@
 import init, { NBodyEngine } from "./rust-engine/pkg/rust_engine.js";
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+
+const MAX_BODIES = 50000;
 
 const DEFAULTS = {
   n: 400,
@@ -8,13 +15,14 @@ const DEFAULTS = {
   dt: 0.016,
   softening: 8,
   bounce: 0.85,
-  trail: 0.72,
-  baseRadius: 1.6,
-  glow: 0.65,
+  trail: 0.45,
+  radiusScale: 2.4,
+  glow: 1.15,
+  bloom: 1.8,
+  visualMode: "bright",
 };
 
 const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
 
 const fpsCanvas = document.getElementById("fpsCanvas");
 const fpsCtx = fpsCanvas.getContext("2d");
@@ -27,6 +35,7 @@ const fullscreenBtn = document.getElementById("fullscreenBtn");
 
 const presetSelect = document.getElementById("presetSelect");
 const bodiesInput = document.getElementById("bodiesInput");
+const visualModeSelect = document.getElementById("visualModeSelect");
 
 const iterationsRange = document.getElementById("iterationsRange");
 const gravityRange = document.getElementById("gravityRange");
@@ -36,6 +45,7 @@ const bounceRange = document.getElementById("bounceRange");
 const trailRange = document.getElementById("trailRange");
 const radiusRange = document.getElementById("radiusRange");
 const glowRange = document.getElementById("glowRange");
+const bloomRange = document.getElementById("bloomRange");
 
 const iterationsValue = document.getElementById("iterationsValue");
 const gravityValue = document.getElementById("gravityValue");
@@ -45,9 +55,9 @@ const bounceValue = document.getElementById("bounceValue");
 const trailValue = document.getElementById("trailValue");
 const radiusValue = document.getElementById("radiusValue");
 const glowValue = document.getElementById("glowValue");
+const bloomValue = document.getElementById("bloomValue");
 
 const statusStat = document.getElementById("statusStat");
-const fpsStat = document.getElementById("fpsStat");
 const fpsBig = document.getElementById("fpsBig");
 const bodiesStat = document.getElementById("bodiesStat");
 const physicsStat = document.getElementById("physicsStat");
@@ -57,8 +67,43 @@ const swStat = document.getElementById("swStat");
 const presetStat = document.getElementById("presetStat");
 
 let engine = null;
+let wasmExports = null;
+
 let running = false;
-let rafId = null;
+let physicsRafId = null;
+let renderRafId = null;
+
+let scene;
+let camera;
+let renderer;
+let controls;
+let composer;
+let renderPass;
+let bloomPass;
+
+let particleSystem;
+let particleGeometry;
+let particleMaterial;
+let trailSystem;
+let trailGeometry;
+let trailMaterial;
+let backgroundStars;
+let particleTexture;
+
+let particlePositions;
+let particleColors;
+let trailPositions;
+let trailColors;
+let trailAnchors;
+
+let wasmPositions = null;
+let wasmMasses = null;
+let wasmSpeeds = null;
+
+let currentBodyCount = DEFAULTS.n;
+
+let colorUpdateCounter = 0;
+let statsUpdateCounter = 0;
 
 let fpsCounter = 0;
 let fpsLastTime = performance.now();
@@ -68,14 +113,18 @@ const fpsHistory = [];
 function applyDefaultsToControls() {
   bodiesInput.value = DEFAULTS.n;
   presetSelect.value = DEFAULTS.preset;
+  visualModeSelect.value = DEFAULTS.visualMode;
+
   iterationsRange.value = DEFAULTS.iterations;
   gravityRange.value = DEFAULTS.g;
   dtRange.value = DEFAULTS.dt;
   softRange.value = DEFAULTS.softening;
   bounceRange.value = DEFAULTS.bounce;
   trailRange.value = DEFAULTS.trail;
-  radiusRange.value = DEFAULTS.baseRadius;
+  radiusRange.value = DEFAULTS.radiusScale;
   glowRange.value = DEFAULTS.glow;
+  bloomRange.value = DEFAULTS.bloom;
+
   syncLabels();
 }
 
@@ -88,27 +137,428 @@ function syncLabels() {
   trailValue.textContent = Number(trailRange.value).toFixed(2);
   radiusValue.textContent = Number(radiusRange.value).toFixed(1);
   glowValue.textContent = Number(glowRange.value).toFixed(2);
+  bloomValue.textContent = Number(bloomRange.value).toFixed(2);
   presetStat.textContent = presetSelect.value;
+}
+
+function clampBodiesInput(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return DEFAULTS.n;
+  return Math.max(1, Math.min(MAX_BODIES, Math.round(n)));
 }
 
 function getSettings() {
   return {
-    n: Math.max(10, Math.min(3000, Number(bodiesInput.value) || DEFAULTS.n)),
+    n: clampBodiesInput(bodiesInput.value),
     preset: presetSelect.value,
+    visualMode: visualModeSelect.value,
     iterations: Number(iterationsRange.value),
     g: Number(gravityRange.value),
     dt: Number(dtRange.value),
     softening: Number(softRange.value),
     bounce: Number(bounceRange.value),
     trail: Number(trailRange.value),
-    baseRadius: Number(radiusRange.value),
+    radiusScale: Number(radiusRange.value),
     glow: Number(glowRange.value),
+    bloom: Number(bloomRange.value),
   };
+}
+
+function createParticleTexture() {
+  const size = 128;
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const g = c.getContext("2d");
+
+  const gradient = g.createRadialGradient(
+    size / 2,
+    size / 2,
+    0,
+    size / 2,
+    size / 2,
+    size / 2
+  );
+
+  gradient.addColorStop(0.0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.30, "rgba(255,255,255,0.98)");
+  gradient.addColorStop(0.62, "rgba(255,255,255,0.62)");
+  gradient.addColorStop(1.0, "rgba(255,255,255,0)");
+
+  g.clearRect(0, 0, size, size);
+  g.fillStyle = gradient;
+  g.beginPath();
+  g.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  g.fill();
+
+  const texture = new THREE.CanvasTexture(c);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function createThreeScene() {
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x050208, 0.00085);
+
+  camera = new THREE.PerspectiveCamera(55, 1, 0.1, 5000);
+  camera.position.set(0, 180, 360);
+
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: false,
+    powerPreference: "high-performance",
+  });
+
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
+  renderer.setClearColor(0x000000, 1);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.target.set(0, 0, 0);
+  controls.minDistance = 80;
+  controls.maxDistance = 1400;
+  controls.update();
+
+  particleTexture = createParticleTexture();
+
+  addBackgroundStars();
+  addSoftLights();
+  buildParticleSystem();
+  buildPostProcessing();
+}
+
+function buildPostProcessing() {
+  renderPass = new RenderPass(scene, camera);
+
+  bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(1, 1),
+    DEFAULTS.bloom,
+    0.55,
+    0.18
+  );
+
+  composer = new EffectComposer(renderer);
+  composer.addPass(renderPass);
+  composer.addPass(bloomPass);
+}
+
+function addSoftLights() {
+  const ambient = new THREE.AmbientLight(0xffffff, 0.42);
+  scene.add(ambient);
+
+  const light1 = new THREE.PointLight(0xffd86b, 1.10, 0, 2);
+  light1.position.set(260, 180, 220);
+  scene.add(light1);
+
+  const light2 = new THREE.PointLight(0xc084ff, 1.00, 0, 2);
+  light2.position.set(-240, -100, -220);
+  scene.add(light2);
+
+  const light3 = new THREE.PointLight(0xff7ad9, 0.65, 0, 2);
+  light3.position.set(0, 120, 0);
+  scene.add(light3);
+}
+
+function addBackgroundStars() {
+  const count = 300;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+
+  for (let i = 0; i < count; i++) {
+    const r = 1400 + Math.random() * 1000;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+
+    const x = r * Math.sin(phi) * Math.cos(theta);
+    const y = r * Math.cos(phi);
+    const z = r * Math.sin(phi) * Math.sin(theta);
+
+    positions[i * 3] = x;
+    positions[i * 3 + 1] = y;
+    positions[i * 3 + 2] = z;
+
+    const c = new THREE.Color().setHSL(0.66 + Math.random() * 0.08, 0.35, 0.72 + Math.random() * 0.16);
+    colors[i * 3] = c.r;
+    colors[i * 3 + 1] = c.g;
+    colors[i * 3 + 2] = c.b;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+  const material = new THREE.PointsMaterial({
+    size: 2.0,
+    sizeAttenuation: true,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.75,
+    depthWrite: false,
+    map: particleTexture,
+    alphaTest: 0.02,
+  });
+
+  backgroundStars = new THREE.Points(geometry, material);
+  scene.add(backgroundStars);
+}
+
+function buildParticleSystem() {
+  particlePositions = new Float32Array(MAX_BODIES * 3);
+  particleColors = new Float32Array(MAX_BODIES * 3);
+
+  trailPositions = new Float32Array(MAX_BODIES * 6);
+  trailColors = new Float32Array(MAX_BODIES * 6);
+  trailAnchors = new Float32Array(MAX_BODIES * 3);
+
+  particleGeometry = new THREE.BufferGeometry();
+  particleGeometry.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
+  particleGeometry.setAttribute("color", new THREE.BufferAttribute(particleColors, 3));
+  particleGeometry.setDrawRange(0, currentBodyCount);
+
+  particleMaterial = new THREE.PointsMaterial({
+    size: Math.max(1.2, DEFAULTS.radiusScale * 1.15),
+    sizeAttenuation: true,
+    vertexColors: true,
+    transparent: true,
+    opacity: 1.0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    map: particleTexture,
+    alphaTest: 0.02,
+  });
+
+  particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+  scene.add(particleSystem);
+
+  trailGeometry = new THREE.BufferGeometry();
+  trailGeometry.setAttribute("position", new THREE.BufferAttribute(trailPositions, 3));
+  trailGeometry.setAttribute("color", new THREE.BufferAttribute(trailColors, 3));
+  trailGeometry.setDrawRange(0, currentBodyCount * 2);
+
+  trailMaterial = new THREE.LineBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.32,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+
+  trailSystem = new THREE.LineSegments(trailGeometry, trailMaterial);
+  scene.add(trailSystem);
+}
+
+function shouldUseTrails(count) {
+  return count <= 4000;
+}
+
+function getVisualModeConfig(mode) {
+  switch (mode) {
+    case "normal":
+      return {
+        bloomStrength: 1.1,
+        bloomRadius: 0.42,
+        bloomThreshold: 0.24,
+        exposure: 1.0,
+        particleOpacityBase: 0.88,
+        particleSizeFactor: 1.0,
+      };
+    case "cinematic":
+      return {
+        bloomStrength: 2.3,
+        bloomRadius: 0.72,
+        bloomThreshold: 0.12,
+        exposure: 1.25,
+        particleOpacityBase: 1.0,
+        particleSizeFactor: 1.25,
+      };
+    case "bright":
+    default:
+      return {
+        bloomStrength: 1.8,
+        bloomRadius: 0.55,
+        bloomThreshold: 0.18,
+        exposure: 1.15,
+        particleOpacityBase: 0.96,
+        particleSizeFactor: 1.15,
+      };
+  }
+}
+
+function getParticleColor(mass, speed, glowStrength) {
+  const massNorm = Math.min(1, mass / 7.0);
+  const speedNorm = Math.min(1, speed / 6.0);
+
+  const hue = 0.79 - massNorm * 0.18 - speedNorm * 0.11;
+  const saturation = Math.min(1, 0.88 + massNorm * 0.06 + speedNorm * 0.06);
+  const lightness = Math.min(
+    0.96,
+    0.56 + massNorm * 0.18 + speedNorm * 0.12 + glowStrength * 0.05
+  );
+
+  return new THREE.Color().setHSL(
+    ((hue % 1) + 1) % 1,
+    saturation,
+    lightness
+  );
+}
+
+function refreshWasmViews() {
+  if (!engine) return;
+  if (!wasmExports || !wasmExports.memory) {
+    throw new Error("WASM memory is unavailable");
+  }
+
+  const mem = wasmExports.memory;
+
+  wasmPositions = new Float32Array(
+    mem.buffer,
+    engine.positions_ptr(),
+    engine.positions_len()
+  );
+
+  wasmMasses = new Float32Array(
+    mem.buffer,
+    engine.masses_ptr(),
+    engine.scalars_len()
+  );
+
+  wasmSpeeds = new Float32Array(
+    mem.buffer,
+    engine.speeds_ptr(),
+    engine.scalars_len()
+  );
+}
+
+function updateVisualSettings() {
+  if (!particleMaterial || !trailMaterial || !trailSystem) return;
+
+  const s = getSettings();
+  const modeCfg = getVisualModeConfig(s.visualMode);
+
+  particleMaterial.size = Math.max(1.2, s.radiusScale * modeCfg.particleSizeFactor);
+  particleMaterial.opacity = Math.min(1, modeCfg.particleOpacityBase + s.glow * 0.04);
+
+  const useTrails = shouldUseTrails(currentBodyCount);
+  trailSystem.visible = useTrails;
+
+  if (useTrails) {
+    trailMaterial.opacity = 0.08 + s.trail * 0.40;
+    trailGeometry.setDrawRange(0, currentBodyCount * 2);
+  } else {
+    trailGeometry.setDrawRange(0, 0);
+  }
+
+  particleGeometry.setDrawRange(0, currentBodyCount);
+
+  if (renderer) {
+    renderer.toneMappingExposure = modeCfg.exposure;
+  }
+
+  if (bloomPass) {
+    bloomPass.strength = s.bloom * (modeCfg.bloomStrength / DEFAULTS.bloom);
+    bloomPass.radius = modeCfg.bloomRadius;
+    bloomPass.threshold = modeCfg.bloomThreshold;
+  }
+}
+
+function rebuildColors(glowStrength) {
+  if (!wasmMasses || !wasmSpeeds) return;
+
+  for (let i = 0; i < currentBodyCount; i++) {
+    const posIndex = i * 3;
+    const trailIndex = i * 6;
+
+    const mass = wasmMasses[i];
+    const speed = wasmSpeeds[i];
+
+    const color = getParticleColor(mass, speed, glowStrength);
+
+    particleColors[posIndex] = color.r;
+    particleColors[posIndex + 1] = color.g;
+    particleColors[posIndex + 2] = color.b;
+
+    trailColors[trailIndex] = color.r * 0.65;
+    trailColors[trailIndex + 1] = color.g * 0.65;
+    trailColors[trailIndex + 2] = color.b * 0.65;
+    trailColors[trailIndex + 3] = color.r;
+    trailColors[trailIndex + 4] = color.g;
+    trailColors[trailIndex + 5] = color.b;
+  }
+
+  particleGeometry.attributes.color.needsUpdate = true;
+  trailGeometry.attributes.color.needsUpdate = true;
+}
+
+function copyPositionsFromSnapshot(resetTrails = false) {
+  if (!wasmPositions) return;
+
+  const useTrails = shouldUseTrails(currentBodyCount);
+
+  for (let i = 0; i < currentBodyCount; i++) {
+    const posIndex = i * 3;
+    const trailIndex = i * 6;
+
+    const x = wasmPositions[posIndex];
+    const y = wasmPositions[posIndex + 1];
+    const z = wasmPositions[posIndex + 2];
+
+    particlePositions[posIndex] = x;
+    particlePositions[posIndex + 1] = y;
+    particlePositions[posIndex + 2] = z;
+
+    if (useTrails) {
+      if (resetTrails) {
+        trailAnchors[posIndex] = x;
+        trailAnchors[posIndex + 1] = y;
+        trailAnchors[posIndex + 2] = z;
+      } else {
+        const keep = Math.max(0, Math.min(0.96, getSettings().trail * 0.92));
+        trailAnchors[posIndex] = trailAnchors[posIndex] * keep + x * (1 - keep);
+        trailAnchors[posIndex + 1] = trailAnchors[posIndex + 1] * keep + y * (1 - keep);
+        trailAnchors[posIndex + 2] = trailAnchors[posIndex + 2] * keep + z * (1 - keep);
+      }
+
+      trailPositions[trailIndex] = trailAnchors[posIndex];
+      trailPositions[trailIndex + 1] = trailAnchors[posIndex + 1];
+      trailPositions[trailIndex + 2] = trailAnchors[posIndex + 2];
+      trailPositions[trailIndex + 3] = x;
+      trailPositions[trailIndex + 4] = y;
+      trailPositions[trailIndex + 5] = z;
+    }
+  }
+
+  particleGeometry.attributes.position.needsUpdate = true;
+
+  if (useTrails) {
+    trailGeometry.attributes.position.needsUpdate = true;
+  }
+}
+
+function createEngine() {
+  const s = getSettings();
+  currentBodyCount = s.n;
+  bodiesInput.value = s.n;
+
+  engine = new NBodyEngine(currentBodyCount, 700, 500, 700);
+  engine.set_params(s.g, s.dt, s.softening, s.bounce);
+  applyPreset();
+
+  refreshWasmViews();
+  copyPositionsFromSnapshot(true);
+  rebuildColors(s.glow);
+  updateVisualSettings();
+
+  bodiesStat.textContent = String(currentBodyCount);
+  statusStat.textContent = "готово";
+  renderScene();
 }
 
 function applyPreset() {
   if (!engine) return;
-
   const s = getSettings();
 
   switch (s.preset) {
@@ -126,34 +576,24 @@ function applyPreset() {
       engine.reset_galaxy();
       break;
   }
+
+  refreshWasmViews();
 }
 
 function applyEngineParams() {
   if (!engine) return;
-
   const s = getSettings();
   engine.set_params(s.g, s.dt, s.softening, s.bounce);
-}
-
-function createEngine() {
-  const s = getSettings();
-
-  engine = new NBodyEngine(s.n, canvas.width, canvas.height);
-  engine.set_params(s.g, s.dt, s.softening, s.bounce);
-  applyPreset();
-
-  bodiesStat.textContent = String(s.n);
-  statusStat.textContent = "готово";
-  drawFrame(true);
 }
 
 function refreshPresetImmediately() {
   if (!engine) return;
-
   pauseSimulation();
   applyEngineParams();
   applyPreset();
-  drawFrame(true);
+  copyPositionsFromSnapshot(true);
+  rebuildColors(getSettings().glow);
+  renderScene();
 }
 
 function startSimulation() {
@@ -162,16 +602,16 @@ function startSimulation() {
 
   running = true;
   statusStat.textContent = "запущено";
-  loop();
+  startPhysicsLoop();
 }
 
 function pauseSimulation() {
   running = false;
   statusStat.textContent = "пауза";
 
-  if (rafId !== null) {
-    cancelAnimationFrame(rafId);
-    rafId = null;
+  if (physicsRafId !== null) {
+    cancelAnimationFrame(physicsRafId);
+    physicsRafId = null;
   }
 }
 
@@ -200,89 +640,29 @@ async function toggleFullscreen() {
   }
 }
 
-function clearCanvasHard() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
+function renderScene() {
+  controls.update();
 
-function drawBackgroundGlow(glowStrength) {
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, `rgba(60, 20, 120, ${0.04 * glowStrength})`);
-  gradient.addColorStop(0.5, `rgba(15, 10, 30, ${0.025 * glowStrength})`);
-  gradient.addColorStop(1, `rgba(25, 60, 120, ${0.04 * glowStrength})`);
+  if (backgroundStars) {
+    backgroundStars.rotation.y += 0.00015;
+  }
 
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
-
-function getParticleStyle(mass, speed, settings) {
-  const massNorm = Math.min(1, mass / 7.0);
-  const speedNorm = Math.min(1, speed / 6.0);
-
-  const hue = 220 - massNorm * 175;
-  const saturation = 55 + speedNorm * 35 + massNorm * 10;
-  const lightness = 48 + speedNorm * 18 + massNorm * 22;
-  const alpha = 0.72 + speedNorm * 0.18;
-
-  const radius = settings.baseRadius + Math.sqrt(mass) * 0.6;
-  const glowAlpha = 0.05 + massNorm * 0.12 + speedNorm * 0.08;
-
-  return {
-    fill: `hsla(${hue}, ${Math.min(100, saturation)}%, ${Math.min(90, lightness)}%, ${Math.min(1, alpha)})`,
-    glow: `hsla(${hue}, ${Math.min(100, saturation)}%, ${Math.min(96, lightness + 8)}%, ${Math.min(0.35, glowAlpha * settings.glow)})`,
-    radius,
-    glowRadius: radius * (1.8 + settings.glow * 1.4),
-  };
-}
-
-/*
-  trail — длина следа.
-  Чем больше значение, тем длиннее должен оставаться след.
-  Значит затемнение кадра должно быть МЕНЬШЕ.
-*/
-function getTrailFadeAlpha(trailLength) {
-  const t = Math.max(0, Math.min(1, trailLength));
-  return 0.22 - t * 0.20; // диапазон примерно от 0.22 до 0.02
-}
-
-function drawFrame(forceClear = false) {
-  if (!engine) return;
-
-  const s = getSettings();
-  const snapshot = engine.snapshot();
-
-  if (forceClear) {
-    clearCanvasHard();
+  if (composer) {
+    composer.render();
   } else {
-    const fadeAlpha = getTrailFadeAlpha(s.trail);
-    ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    renderer.render(scene, camera);
   }
+}
 
-  drawBackgroundGlow(s.glow);
+function startRenderLoop() {
+  if (renderRafId !== null) return;
 
-  for (let i = 0; i < snapshot.length; i += 4) {
-    const x = snapshot[i];
-    const y = snapshot[i + 1];
-    const mass = snapshot[i + 2];
-    const speed = snapshot[i + 3];
+  const renderTick = () => {
+    renderScene();
+    renderRafId = requestAnimationFrame(renderTick);
+  };
 
-    const style = getParticleStyle(mass, speed, s);
-
-    ctx.beginPath();
-    ctx.fillStyle = style.glow;
-    ctx.arc(x, y, style.glowRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.fillStyle = style.fill;
-    ctx.arc(x, y, style.radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  kineticStat.textContent = engine.kinetic_energy().toFixed(2);
-  totalEnergyStat.textContent = engine.total_energy().toFixed(2);
+  renderTick();
 }
 
 function drawFpsGraph() {
@@ -291,6 +671,13 @@ function drawFpsGraph() {
 
   fpsCtx.clearRect(0, 0, w, h);
 
+  const leftPad = 28;
+  const rightPad = 10;
+  const topPad = 8;
+  const bottomPad = 12;
+  const chartW = w - leftPad - rightPad;
+  const chartH = h - topPad - bottomPad;
+
   const bg = fpsCtx.createLinearGradient(0, 0, 0, h);
   bg.addColorStop(0, "rgba(34, 197, 255, 0.05)");
   bg.addColorStop(0.5, "rgba(167, 139, 250, 0.03)");
@@ -298,50 +685,46 @@ function drawFpsGraph() {
   fpsCtx.fillStyle = bg;
   fpsCtx.fillRect(0, 0, w, h);
 
+  const axisMax = Math.max(60, Math.ceil(Math.max(...fpsHistory, 60) / 10) * 10);
+  const labelValues = axisMax >= 90 ? [0, 30, 60, 90] : [0, 20, 40, 60];
+
   fpsCtx.strokeStyle = "rgba(255,255,255,0.08)";
   fpsCtx.lineWidth = 1;
 
-  const labelValues = [0, 30, 60, 90];
-  const axisMax = 100;
-
-  for (let i = 1; i <= 4; i++) {
-    const y = (h / 5) * i;
+  labelValues.forEach((val) => {
+    const y = topPad + chartH - (val / axisMax) * chartH;
     fpsCtx.beginPath();
-    fpsCtx.moveTo(0, y);
-    fpsCtx.lineTo(w, y);
+    fpsCtx.moveTo(leftPad, y);
+    fpsCtx.lineTo(w - rightPad, y);
     fpsCtx.stroke();
-  }
+  });
 
-  fpsCtx.fillStyle = "rgba(255,255,255,0.35)";
+  fpsCtx.fillStyle = "rgba(255,255,255,0.40)";
   fpsCtx.font = "11px Inter, system-ui, sans-serif";
+  fpsCtx.textBaseline = "middle";
 
   labelValues.forEach((val) => {
-    const y = h - (val / axisMax) * (h - 16) - 8;
-    fpsCtx.fillText(val.toString(), 6, y);
+    const y = topPad + chartH - (val / axisMax) * chartH;
+    fpsCtx.fillText(String(val), 6, y);
   });
 
   if (fpsHistory.length < 2) return;
 
-  const maxFps = Math.max(60, ...fpsHistory);
-  const normalizedMax = Math.max(axisMax, maxFps);
-
   const points = fpsHistory.map((fps, i) => {
-    const x = (i / (fpsHistory.length - 1)) * w;
-    const y = h - (fps / normalizedMax) * (h - 16) - 8;
+    const x = leftPad + (i / (fpsHistory.length - 1)) * chartW;
+    const y = topPad + chartH - (fps / axisMax) * chartH;
     return { x, y };
   });
 
-  const areaGradient = fpsCtx.createLinearGradient(0, 0, 0, h);
-  areaGradient.addColorStop(0, "rgba(56, 189, 248, 0.28)");
-  areaGradient.addColorStop(0.55, "rgba(167, 139, 250, 0.14)");
-  areaGradient.addColorStop(1, "rgba(167, 139, 250, 0.01)");
+  const areaGradient = fpsCtx.createLinearGradient(0, topPad, 0, h);
+  areaGradient.addColorStop(0, "rgba(255, 225, 90, 0.22)");
+  areaGradient.addColorStop(0.55, "rgba(180, 95, 255, 0.14)");
+  areaGradient.addColorStop(1, "rgba(180, 95, 255, 0.01)");
 
   fpsCtx.beginPath();
-  fpsCtx.moveTo(points[0].x, h);
-  for (const p of points) {
-    fpsCtx.lineTo(p.x, p.y);
-  }
-  fpsCtx.lineTo(points[points.length - 1].x, h);
+  fpsCtx.moveTo(points[0].x, topPad + chartH);
+  for (const p of points) fpsCtx.lineTo(p.x, p.y);
+  fpsCtx.lineTo(points[points.length - 1].x, topPad + chartH);
   fpsCtx.closePath();
   fpsCtx.fillStyle = areaGradient;
   fpsCtx.fill();
@@ -352,7 +735,7 @@ function drawFpsGraph() {
     if (i === 0) fpsCtx.moveTo(p.x, p.y);
     else fpsCtx.lineTo(p.x, p.y);
   }
-  fpsCtx.strokeStyle = "rgba(56, 189, 248, 0.30)";
+  fpsCtx.strokeStyle = "rgba(255, 220, 90, 0.22)";
   fpsCtx.lineWidth = 8;
   fpsCtx.lineCap = "round";
   fpsCtx.lineJoin = "round";
@@ -365,10 +748,10 @@ function drawFpsGraph() {
     else fpsCtx.lineTo(p.x, p.y);
   }
 
-  const lineGradient = fpsCtx.createLinearGradient(0, 0, w, 0);
-  lineGradient.addColorStop(0, "#67e8f9");
-  lineGradient.addColorStop(0.5, "#60a5fa");
-  lineGradient.addColorStop(1, "#c084fc");
+  const lineGradient = fpsCtx.createLinearGradient(leftPad, 0, w - rightPad, 0);
+  lineGradient.addColorStop(0, "#ffe15a");
+  lineGradient.addColorStop(0.55, "#c084fc");
+  lineGradient.addColorStop(1, "#8b5cf6");
 
   fpsCtx.strokeStyle = lineGradient;
   fpsCtx.lineWidth = 3;
@@ -376,45 +759,65 @@ function drawFpsGraph() {
   fpsCtx.lineJoin = "round";
   fpsCtx.stroke();
 
-  for (const p of points) {
-    fpsCtx.beginPath();
-    fpsCtx.fillStyle = "rgba(255,255,255,0.75)";
-    fpsCtx.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
-    fpsCtx.fill();
-  }
+  const last = points[points.length - 1];
+  fpsCtx.beginPath();
+  fpsCtx.fillStyle = "#ffffff";
+  fpsCtx.arc(last.x, last.y, 3, 0, Math.PI * 2);
+  fpsCtx.fill();
 }
 
-function loop() {
-  if (!running || !engine) return;
+function startPhysicsLoop() {
+  if (physicsRafId !== null) return;
 
-  const s = getSettings();
+  const physicsTick = () => {
+    if (!running || !engine) {
+      physicsRafId = null;
+      return;
+    }
 
-  const t0 = performance.now();
-  engine.step_many(s.iterations);
-  const t1 = performance.now();
+    const s = getSettings();
 
-  drawFrame(false);
-  physicsStat.textContent = `${(t1 - t0).toFixed(3)} ms`;
+    const t0 = performance.now();
+    engine.step_many(s.iterations);
+    const t1 = performance.now();
 
-  fpsCounter++;
-  const now = performance.now();
+    refreshWasmViews();
+    copyPositionsFromSnapshot(false);
 
-  if (now - fpsLastTime >= 1000) {
-    currentFPS = fpsCounter;
+    colorUpdateCounter++;
+    if (colorUpdateCounter >= 10) {
+      rebuildColors(s.glow);
+      colorUpdateCounter = 0;
+    }
 
-    fpsStat.textContent = String(currentFPS);
-    fpsBig.textContent = `${currentFPS} FPS`;
+    statsUpdateCounter++;
+    if (statsUpdateCounter >= 15) {
+      physicsStat.textContent = `${(t1 - t0).toFixed(3)} ms`;
+      kineticStat.textContent = engine.kinetic_energy().toFixed(2);
+      totalEnergyStat.textContent = engine.total_energy().toFixed(2);
+      statsUpdateCounter = 0;
+    }
 
-    fpsHistory.push(currentFPS);
-    if (fpsHistory.length > 80) fpsHistory.shift();
+    fpsCounter++;
+    const now = performance.now();
 
-    drawFpsGraph();
+    if (now - fpsLastTime >= 1000) {
+      currentFPS = fpsCounter;
+      fpsBig.textContent = `${currentFPS} FPS`;
 
-    fpsCounter = 0;
-    fpsLastTime = now;
-  }
+      fpsHistory.push(currentFPS);
+      if (fpsHistory.length > 80) fpsHistory.shift();
 
-  rafId = requestAnimationFrame(loop);
+      drawFpsGraph();
+
+      fpsCounter = 0;
+      fpsLastTime = now;
+    }
+
+    physicsRafId = requestAnimationFrame(physicsTick);
+  };
+
+  physicsTick();
 }
 
 function setupListeners() {
@@ -426,16 +829,22 @@ function setupListeners() {
     bounceRange,
     radiusRange,
     glowRange,
+    trailRange,
+    bloomRange,
   ].forEach((el) => {
     el.addEventListener("input", () => {
       syncLabels();
       applyEngineParams();
-      drawFrame(false);
+      updateVisualSettings();
+      rebuildColors(getSettings().glow);
+      renderScene();
     });
   });
 
-  trailRange.addEventListener("input", () => {
-    syncLabels();
+  visualModeSelect.addEventListener("change", () => {
+    updateVisualSettings();
+    rebuildColors(getSettings().glow);
+    renderScene();
   });
 
   presetSelect.addEventListener("change", () => {
@@ -443,7 +852,16 @@ function setupListeners() {
     refreshPresetImmediately();
   });
 
+  bodiesInput.addEventListener("input", () => {
+    const n = clampBodiesInput(bodiesInput.value);
+    if (String(n) !== bodiesInput.value && bodiesInput.value !== "") {
+      bodiesInput.value = n;
+    }
+  });
+
   bodiesInput.addEventListener("change", () => {
+    const n = clampBodiesInput(bodiesInput.value);
+    bodiesInput.value = n;
     resetSystem();
   });
 
@@ -455,29 +873,35 @@ function setupListeners() {
 
   document.addEventListener("fullscreenchange", () => {
     setTimeout(() => {
-      resizeCanvasToDisplaySize();
-      drawFrame(true);
+      resizeToDisplaySize();
+      renderScene();
     }, 50);
   });
 
-  window.addEventListener("resize", () => {
-    resizeCanvasToDisplaySize();
-  });
+  window.addEventListener("resize", resizeToDisplaySize);
 }
 
-function resizeCanvasToDisplaySize() {
+function resizeToDisplaySize() {
   const rect = canvas.getBoundingClientRect();
   const width = Math.max(640, Math.floor(rect.width));
   const height = Math.max(480, Math.floor(rect.height));
 
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
 
-    if (engine) {
-      engine.resize_world(canvas.width, canvas.height);
-      drawFrame(true);
-    }
+  if (composer) {
+    composer.setSize(width, height);
+  }
+
+  if (bloomPass) {
+    bloomPass.setSize(width, height);
+  }
+
+  if (engine) {
+    engine.resize_world(700, Math.max(350, height * 0.7), 700);
+    refreshWasmViews();
+    copyPositionsFromSnapshot(false);
   }
 
   const fpsRect = fpsCanvas.getBoundingClientRect();
@@ -507,19 +931,38 @@ async function registerSW() {
 }
 
 async function boot() {
-  statusStat.textContent = "loading wasm...";
-  fpsBig.textContent = "0 FPS";
+  try {
+    statusStat.textContent = "инициализация...";
+    fpsBig.textContent = "0 FPS";
 
-  applyDefaultsToControls();
-  await init();
+    applyDefaultsToControls();
+    syncLabels();
 
-  resizeCanvasToDisplaySize();
-  createEngine();
-  drawFpsGraph();
-  setupListeners();
-  await registerSW();
+    await registerSW();
 
-  statusStat.textContent = "готово";
+    createThreeScene();
+
+    statusStat.textContent = "загрузка wasm...";
+    wasmExports = await init();
+
+    if (!wasmExports) {
+      throw new Error("WASM init returned no exports");
+    }
+
+    resizeToDisplaySize();
+    createEngine();
+    drawFpsGraph();
+    setupListeners();
+    startRenderLoop();
+
+    kineticStat.textContent = engine.kinetic_energy().toFixed(2);
+    totalEnergyStat.textContent = engine.total_energy().toFixed(2);
+    statusStat.textContent = "готово";
+  } catch (err) {
+    console.error("Ошибка boot():", err);
+    statusStat.textContent = "ошибка запуска";
+    swStat.textContent = "check console";
+  }
 }
 
 boot();

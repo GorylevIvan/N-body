@@ -7,6 +7,15 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#1e1b75" />
 
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.181.0/examples/jsm/"
+    }
+  }
+  </script>
+
   <style>
     :root {
       --bg-1: #0b0f3f;
@@ -35,6 +44,11 @@
         0 0 0 1px rgba(255,255,255,0.02),
         0 0 40px rgba(103, 232, 249, 0.08),
         0 0 80px rgba(167, 139, 250, 0.06);
+
+      --slider-track: rgba(255,255,255,0.14);
+      --slider-track-fill: rgba(180, 190, 255, 0.38);
+      --slider-thumb: #e9e7ff;
+      --slider-thumb-border: rgba(58, 50, 120, 0.8);
     }
 
     * {
@@ -192,7 +206,50 @@
     }
 
     input[type="range"] {
-      accent-color: #67e8f9;
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      height: 22px;
+      margin: 2px 0 0;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 999px;
+      background:
+        linear-gradient(90deg, var(--slider-track-fill), var(--slider-track));
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--slider-thumb);
+      border: 2px solid var(--slider-thumb-border);
+      margin-top: -6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 8px;
+      border-radius: 999px;
+      background:
+        linear-gradient(90deg, var(--slider-track-fill), var(--slider-track));
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--slider-thumb);
+      border: 2px solid var(--slider-thumb-border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      cursor: pointer;
     }
 
     .value {
@@ -536,7 +593,7 @@
 
         <div class="field">
           <label for="bodiesInput">Количество тел</label>
-          <input id="bodiesInput" type="number" min="10" max="3000" step="10" value="400" />
+          <<input id="bodiesInput" type="number" min="1" max="50000" step="1" value="400" />
         </div>
 
         <div class="field">
@@ -578,21 +635,36 @@
         <h3>Визуализация</h3>
 
         <div class="field">
+          <label for="visualModeSelect">Режим отображения</label>
+          <select id="visualModeSelect">
+            <option value="normal">Обычный</option>
+            <option value="bright">Яркий</option>
+            <option value="cinematic">Cinematic</option>
+          </select>
+        </div>
+
+        <div class="field">
           <label for="trailRange">Длина следа</label>
-          <input id="trailRange" type="range" min="0" max="1" step="0.01" value="0.72" />
-          <div class="value" id="trailValue">0.72</div>
+          <input id="trailRange" type="range" min="0" max="1" step="0.01" value="0.45" />
+          <div class="value" id="trailValue">0.45</div>
         </div>
 
         <div class="field">
           <label for="radiusRange">Размер частиц</label>
-          <input id="radiusRange" type="range" min="1" max="6" step="0.1" value="1.6" />
-          <div class="value" id="radiusValue">1.6</div>
+          <input id="radiusRange" type="range" min="1" max="8" step="0.1" value="2.4" />
+          <div class="value" id="radiusValue">2.4</div>
         </div>
 
         <div class="field">
-          <label for="glowRange">Свечение</label>
-          <input id="glowRange" type="range" min="0" max="1.5" step="0.01" value="0.65" />
-          <div class="value" id="glowValue">0.65</div>
+          <label for="glowRange">Яркость свечения</label>
+          <input id="glowRange" type="range" min="0" max="2.5" step="0.01" value="1.15" />
+          <div class="value" id="glowValue">1.15</div>
+        </div>
+
+        <div class="field">
+          <label for="bloomRange">Bloom</label>
+          <input id="bloomRange" type="range" min="0" max="3.5" step="0.01" value="1.8" />
+          <div class="value" id="bloomValue">1.80</div>
         </div>
       </div>
 
@@ -641,11 +713,6 @@
           <div class="stat-item">
             <div class="k">Статус</div>
             <div class="v" id="statusStat">loading</div>
-          </div>
-
-          <div class="stat-item">
-            <div class="k">FPS</div>
-            <div class="v" id="fpsStat">0</div>
           </div>
 
           <div class="stat-item">

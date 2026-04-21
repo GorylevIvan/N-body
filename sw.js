@@ -1,4 +1,6 @@
-const CACHE_NAME = "nbody-pwa-v3";
+const CACHE_NAME = "nbody-pwa-v5";
+const EXTERNAL_CACHE = "nbody-external-v2";
+
 const ASSETS = [
   "./",
   "./index.html",
@@ -23,7 +25,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
+          if (key !== CACHE_NAME && key !== EXTERNAL_CACHE) {
             return caches.delete(key);
           }
         })
@@ -34,7 +36,25 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
+  const url = new URL(event.request.url);
+
+  if (url.origin === location.origin) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => cached || fetch(event.request))
+    );
+    return;
+  }
+
+  if (url.hostname === "cdn.jsdelivr.net") {
+    event.respondWith(
+      caches.open(EXTERNAL_CACHE).then(async (cache) => {
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
+
+        const response = await fetch(event.request);
+        cache.put(event.request, response.clone());
+        return response;
+      })
+    );
+  }
 });
