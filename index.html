@@ -593,13 +593,13 @@
 
         <div class="field">
           <label for="bodiesInput">Количество тел</label>
-          <<input id="bodiesInput" type="number" min="1" max="50000" step="1" value="400" />
+          <input id="bodiesInput" type="number" min="1" max="50000" step="1" value="400" />
         </div>
 
         <div class="field">
           <label for="iterationsRange">Итераций за кадр</label>
-          <input id="iterationsRange" type="range" min="1" max="12" step="1" value="2" />
-          <div class="value" id="iterationsValue">2</div>
+          <input id="iterationsRange" type="range" min="1" max="12" step="1" value="1" />
+          <div class="value" id="iterationsValue">1</div>
         </div>
       </div>
 
@@ -614,8 +614,8 @@
 
         <div class="field">
           <label for="dtRange">Шаг времени</label>
-          <input id="dtRange" type="range" min="0.001" max="0.05" step="0.001" value="0.016" />
-          <div class="value" id="dtValue">0.016</div>
+          <input id="dtRange" type="range" min="0.001" max="0.05" step="0.001" value="0.008" />
+          <div class="value" id="dtValue">0.008</div>
         </div>
 
         <div class="field">
@@ -639,7 +639,7 @@
           <select id="visualModeSelect">
             <option value="normal">Обычный</option>
             <option value="bright">Яркий</option>
-            <option value="cinematic">Cinematic</option>
+            <option value="cinematic">Кинематографичный</option>
           </select>
         </div>
 
@@ -662,7 +662,7 @@
         </div>
 
         <div class="field">
-          <label for="bloomRange">Bloom</label>
+          <label for="bloomRange">Интенсивность свечения</label>
           <input id="bloomRange" type="range" min="0" max="3.5" step="0.01" value="1.8" />
           <div class="value" id="bloomValue">1.80</div>
         </div>

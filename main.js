@@ -6,13 +6,16 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
 const MAX_BODIES = 50000;
+const WORLD_WIDTH = 1800;
+const WORLD_HEIGHT = 900;
+const WORLD_DEPTH = 1800;
 
 const DEFAULTS = {
   n: 400,
   preset: "galaxy",
-  iterations: 2,
+  iterations: 1,
   g: 30,
-  dt: 0.016,
+  dt: 0.008,
   softening: 8,
   bounce: 0.85,
   trail: 0.45,
@@ -201,7 +204,8 @@ function createThreeScene() {
   scene.fog = new THREE.FogExp2(0x050208, 0.00085);
 
   camera = new THREE.PerspectiveCamera(55, 1, 0.1, 5000);
-  camera.position.set(0, 180, 360);
+  camera.position.set(0, 420, 520);
+  camera.lookAt(0, 0, 0);
 
   renderer = new THREE.WebGLRenderer({
     canvas,
@@ -218,7 +222,7 @@ function createThreeScene() {
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
-  controls.target.set(0, 0, 0);
+  controls.target.set(0, 40, 0);
   controls.minDistance = 80;
   controls.maxDistance = 1400;
   controls.update();
@@ -392,12 +396,19 @@ function getParticleColor(mass, speed, glowStrength) {
   const massNorm = Math.min(1, mass / 7.0);
   const speedNorm = Math.min(1, speed / 6.0);
 
-  const hue = 0.79 - massNorm * 0.18 - speedNorm * 0.11;
-  const saturation = Math.min(1, 0.88 + massNorm * 0.06 + speedNorm * 0.06);
-  const lightness = Math.min(
-    0.96,
-    0.56 + massNorm * 0.18 + speedNorm * 0.12 + glowStrength * 0.05
-  );
+  const hue =
+    0.78
+    - speedNorm * 0.64
+    - massNorm * 0.06;
+
+  const saturation =
+    Math.min(1, 0.88 + speedNorm * 0.08 + massNorm * 0.04);
+
+  const lightness =
+    Math.min(
+      0.95,
+      0.54 + speedNorm * 0.20 + massNorm * 0.08 + glowStrength * 0.05
+    );
 
   return new THREE.Color().setHSL(
     ((hue % 1) + 1) % 1,
@@ -543,7 +554,7 @@ function createEngine() {
   currentBodyCount = s.n;
   bodiesInput.value = s.n;
 
-  engine = new NBodyEngine(currentBodyCount, 700, 500, 700);
+  engine = new NBodyEngine(currentBodyCount, WORLD_WIDTH, WORLD_HEIGHT, WORLD_DEPTH);
   engine.set_params(s.g, s.dt, s.softening, s.bounce);
   applyPreset();
 
@@ -899,7 +910,11 @@ function resizeToDisplaySize() {
   }
 
   if (engine) {
-    engine.resize_world(700, Math.max(350, height * 0.7), 700);
+    engine.resize_world(
+      WORLD_WIDTH,
+      Math.max(WORLD_HEIGHT, height * 1.1),
+      WORLD_DEPTH
+    );
     refreshWasmViews();
     copyPositionsFromSnapshot(false);
   }

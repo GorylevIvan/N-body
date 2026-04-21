@@ -350,26 +350,44 @@ impl NBodyEngine {
     }
 
     pub fn reset_explosion(&mut self) {
-        let start_r = self.width.min(self.depth) * 0.06;
+        let sphere_radius = self.width.min(self.height).min(self.depth) * 0.22;
 
         for i in 0..self.n {
             let theta = (Math::random() as f32) * std::f32::consts::TAU;
-            let phi = (Math::random() as f32) * std::f32::consts::PI;
-            let r = (Math::random() as f32).cbrt() * start_r;
+            let phi = ((Math::random() as f32) * 2.0 - 1.0).acos();
+            let r = (Math::random() as f32).cbrt() * sphere_radius;
 
             let sin_phi = phi.sin();
-            let dir_x = sin_phi * theta.cos();
-            let dir_y = phi.cos();
-            let dir_z = sin_phi * theta.sin();
 
-            self.x[i] = dir_x * r;
-            self.y[i] = dir_y * r;
-            self.z[i] = dir_z * r;
+            let x = r * sin_phi * theta.cos();
+            let y = r * phi.cos();
+            let z = r * sin_phi * theta.sin();
 
-            let speed = 1.0 + (Math::random() as f32) * 2.8;
-            self.vx[i] = dir_x * speed;
-            self.vy[i] = dir_y * speed;
-            self.vz[i] = dir_z * speed;
+            self.x[i] = x;
+            self.y[i] = y;
+            self.z[i] = z;
+
+            let dx = -x;
+            let dy = -y;
+            let dz = -z;
+
+            let dist = (dx * dx + dy * dy + dz * dz).sqrt() + 0.0001;
+
+            let speed = 0.35 + (Math::random() as f32) * 1.4;
+
+            // Основное движение к центру
+            let mut vx = dx / dist * speed;
+            let mut vy = dy / dist * speed;
+            let mut vz = dz / dist * speed;
+
+            // Небольшой хаотический разброс
+            vx += ((Math::random() as f32) - 0.5) * 0.18;
+            vy += ((Math::random() as f32) - 0.5) * 0.18;
+            vz += ((Math::random() as f32) - 0.5) * 0.18;
+
+            self.vx[i] = vx;
+            self.vy[i] = vy;
+            self.vz[i] = vz;
 
             self.mass[i] = 1.0 + (Math::random() as f32) * 4.0;
         }
