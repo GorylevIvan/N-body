@@ -1,0 +1,15 @@
+{
+  "name": "rust_engine",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "rust_engine_bg.wasm",
+    "rust_engine.js",
+    "rust_engine.d.ts"
+  ],
+  "main": "rust_engine.js",
+  "types": "rust_engine.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
