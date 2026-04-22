@@ -5,6 +5,12 @@ const THETA: f32 = 0.7;
 const MAX_DEPTH: usize = 18;
 const MIN_HALF_SIZE: f32 = 0.5;
 
+#[derive(Clone, Copy)]
+enum SolverMode {
+    Direct,
+    BarnesHut,
+}
+
 #[derive(Clone)]
 struct OctreeNode {
     cx: f32,
@@ -182,6 +188,8 @@ pub struct NBodyEngine {
     softening: f32,
     bounce: f32,
 
+    solver_mode: SolverMode,
+
     x: Vec<f32>,
     y: Vec<f32>,
     z: Vec<f32>,
@@ -214,6 +222,8 @@ impl NBodyEngine {
             softening: 8.0,
             bounce: 0.85,
 
+            solver_mode: SolverMode::BarnesHut,
+
             x: vec![0.0; n],
             y: vec![0.0; n],
             z: vec![0.0; n],
@@ -233,6 +243,13 @@ impl NBodyEngine {
 
         engine.reset_galaxy();
         engine
+    }
+
+    pub fn set_solver_mode(&mut self, mode: &str) {
+        self.solver_mode = match mode {
+            "direct" => SolverMode::Direct,
+            _ => SolverMode::BarnesHut,
+        };
     }
 
     pub fn resize_world(&mut self, width: f32, height: f32, depth: f32) {
@@ -375,12 +392,10 @@ impl NBodyEngine {
 
             let speed = 0.35 + (Math::random() as f32) * 1.4;
 
-            // Основное движение к центру
             let mut vx = dx / dist * speed;
             let mut vy = dy / dist * speed;
             let mut vz = dz / dist * speed;
 
-            // Небольшой хаотический разброс
             vx += ((Math::random() as f32) - 0.5) * 0.18;
             vy += ((Math::random() as f32) - 0.5) * 0.18;
             vz += ((Math::random() as f32) - 0.5) * 0.18;
@@ -454,29 +469,9 @@ impl NBodyEngine {
     }
 
     pub fn step(&mut self) {
-        for i in 0..self.n {
-            self.ax[i] = 0.0;
-            self.ay[i] = 0.0;
-            self.az[i] = 0.0;
-        }
-
-        let indices: Vec<usize> = (0..self.n).collect();
-        let tree = Octree::new(
-            &indices,
-            &self.x,
-            &self.y,
-            &self.z,
-            &self.mass,
-            self.width,
-            self.height,
-            self.depth,
-        );
-
-        for i in 0..self.n {
-            let (ax, ay, az) = self.compute_force_from_tree(&tree, 0, i);
-            self.ax[i] = ax;
-            self.ay[i] = ay;
-            self.az[i] = az;
+        match self.solver_mode {
+            SolverMode::Direct => self.step_direct(),
+            SolverMode::BarnesHut => self.step_barnes_hut(),
         }
 
         self.integrate_and_bounce();
@@ -521,6 +516,69 @@ impl NBodyEngine {
 }
 
 impl NBodyEngine {
+    fn clear_acceleration(&mut self) {
+        for i in 0..self.n {
+            self.ax[i] = 0.0;
+            self.ay[i] = 0.0;
+            self.az[i] = 0.0;
+        }
+    }
+
+    fn step_direct(&mut self) {
+        self.clear_acceleration();
+
+        for i in 0..self.n {
+            let xi = self.x[i];
+            let yi = self.y[i];
+            let zi = self.z[i];
+            let mi = self.mass[i];
+
+            for j in (i + 1)..self.n {
+                let dx = self.x[j] - xi;
+                let dy = self.y[j] - yi;
+                let dz = self.z[j] - zi;
+
+                let dist_sq = dx * dx + dy * dy + dz * dz + self.softening * self.softening;
+                let inv_dist = dist_sq.sqrt().recip();
+                let inv_dist3 = inv_dist * inv_dist * inv_dist;
+
+                let ai = self.g * self.mass[j] * inv_dist3;
+                let aj = self.g * mi * inv_dist3;
+
+                self.ax[i] += dx * ai;
+                self.ay[i] += dy * ai;
+                self.az[i] += dz * ai;
+
+                self.ax[j] -= dx * aj;
+                self.ay[j] -= dy * aj;
+                self.az[j] -= dz * aj;
+            }
+        }
+    }
+
+    fn step_barnes_hut(&mut self) {
+        self.clear_acceleration();
+
+        let indices: Vec<usize> = (0..self.n).collect();
+        let tree = Octree::new(
+            &indices,
+            &self.x,
+            &self.y,
+            &self.z,
+            &self.mass,
+            self.width,
+            self.height,
+            self.depth,
+        );
+
+        for i in 0..self.n {
+            let (ax, ay, az) = self.compute_force_from_tree(&tree, 0, i);
+            self.ax[i] = ax;
+            self.ay[i] = ay;
+            self.az[i] = az;
+        }
+    }
+
     fn sync_render_buffers(&mut self) {
         for i in 0..self.n {
             let p = i * 3;

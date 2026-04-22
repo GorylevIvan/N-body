@@ -98,6 +98,39 @@
       filter: blur(30px);
     }
 
+    .solver-warning {
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        line-height: 1.35;
+        color: #ffe6a8;
+        background: rgba(255, 196, 87, 0.10);
+        border: 1px solid rgba(255, 196, 87, 0.24);
+      }
+
+      .solver-warning-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .solver-warning-close {
+        border: none;
+        background: transparent;
+        color: #ffe6a8;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+        opacity: 0.8;
+      }
+
+      .solver-warning-close:hover {
+        opacity: 1;
+      }
+
     .app {
       position: relative;
       z-index: 1;
@@ -583,12 +616,30 @@
 
         <div class="field">
           <label for="presetSelect">Пресет симуляции</label>
+
           <select id="presetSelect">
             <option value="galaxy" selected>Галактика</option>
             <option value="collapse">Коллапс</option>
             <option value="explosion">Взрыв</option>
             <option value="two-galaxies">Две галактики</option>
           </select>
+        </div>
+
+        <div class="field">
+          <label for="solverSelect">Алгоритм расчёта</label>
+          <select id="solverSelect">
+            <option value="barnes_hut">Barnes–Hut</option>
+            <option value="direct">Прямой</option>
+          </select>
+        </div>
+
+        <div id="solverWarning" class="solver-warning" style="display:none;">
+          <div class="solver-warning-row">
+            <div id="solverWarningText">
+              Для прямого метода большое число тел может снизить производительность.
+            </div>
+            <button id="solverWarningClose" type="button" class="solver-warning-close" aria-label="Закрыть">×</button>
+          </div>
         </div>
 
         <div class="field">
@@ -623,12 +674,12 @@
           <input id="softRange" type="range" min="1" max="40" step="1" value="8" />
           <div class="value" id="softValue">8</div>
         </div>
-
+<!-- 
         <div class="field">
           <label for="bounceRange">Упругость границ</label>
           <input id="bounceRange" type="range" min="0" max="1" step="0.01" value="0.85" />
           <div class="value" id="bounceValue">0.85</div>
-        </div>
+        </div> -->
       </div>
 
       <div class="group">
@@ -735,9 +786,24 @@
             <div class="v" id="totalEnergyStat">0</div>
           </div>
 
-          <div class="stat-item">
+          <!-- <div class="stat-item">
             <div class="k">Service Worker</div>
             <div class="v" id="swStat">not registered</div>
+          </div> -->
+
+          <div class="stat-item">
+            <div class="k">Алгоритм</div>
+            <div class="v" id="solverStat">Barnes–Hut</div>
+          </div>
+
+          <div class="stat-item">
+            <div class="k">Среднее время физики</div>
+            <div class="v" id="avgPhysicsStat">0 ms</div>
+          </div>
+
+          <div class="stat-item">
+            <div class="k">Отклонение энергии</div>
+            <div class="v" id="energyDriftStat">0%</div>
           </div>
 
           <div class="stat-item">

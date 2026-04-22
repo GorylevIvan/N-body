@@ -13,14 +13,15 @@ const WORLD_DEPTH = 1800;
 const DEFAULTS = {
   n: 400,
   preset: "galaxy",
+  solver: "barnes_hut",
   iterations: 1,
   g: 30,
   dt: 0.008,
   softening: 8,
   bounce: 0.85,
   trail: 0.45,
-  radiusScale: 2.4,
-  glow: 1.15,
+  radiusScale: 4.5,
+  glow: 1.4,
   bloom: 1.8,
   visualMode: "bright",
 };
@@ -37,6 +38,8 @@ const defaultsBtn = document.getElementById("defaultsBtn");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
 
 const presetSelect = document.getElementById("presetSelect");
+const solverSelect = document.getElementById("solverSelect");
+const solverWarning = document.getElementById("solverWarning");
 const bodiesInput = document.getElementById("bodiesInput");
 const visualModeSelect = document.getElementById("visualModeSelect");
 
@@ -44,7 +47,7 @@ const iterationsRange = document.getElementById("iterationsRange");
 const gravityRange = document.getElementById("gravityRange");
 const dtRange = document.getElementById("dtRange");
 const softRange = document.getElementById("softRange");
-const bounceRange = document.getElementById("bounceRange");
+//const bounceRange = document.getElementById("bounceRange");
 const trailRange = document.getElementById("trailRange");
 const radiusRange = document.getElementById("radiusRange");
 const glowRange = document.getElementById("glowRange");
@@ -54,7 +57,7 @@ const iterationsValue = document.getElementById("iterationsValue");
 const gravityValue = document.getElementById("gravityValue");
 const dtValue = document.getElementById("dtValue");
 const softValue = document.getElementById("softValue");
-const bounceValue = document.getElementById("bounceValue");
+//const bounceValue = document.getElementById("bounceValue");
 const trailValue = document.getElementById("trailValue");
 const radiusValue = document.getElementById("radiusValue");
 const glowValue = document.getElementById("glowValue");
@@ -66,11 +69,22 @@ const bodiesStat = document.getElementById("bodiesStat");
 const physicsStat = document.getElementById("physicsStat");
 const kineticStat = document.getElementById("kineticStat");
 const totalEnergyStat = document.getElementById("totalEnergyStat");
-const swStat = document.getElementById("swStat");
+//const swStat = document.getElementById("swStat");
 const presetStat = document.getElementById("presetStat");
+
+const solverWarningText = document.getElementById("solverWarningText");
+const solverWarningClose = document.getElementById("solverWarningClose");
+
+const solverStat = document.getElementById("solverStat");
+const avgPhysicsStat = document.getElementById("avgPhysicsStat");
+const energyDriftStat = document.getElementById("energyDriftStat");
 
 let engine = null;
 let wasmExports = null;
+
+let solverWarningDismissed = false;
+let baselineTotalEnergy = null;
+let physicsSamples = [];
 
 let running = false;
 let physicsRafId = null;
@@ -107,6 +121,11 @@ let currentBodyCount = DEFAULTS.n;
 
 let colorUpdateCounter = 0;
 let statsUpdateCounter = 0;
+let lastLightStatsUpdate = 0;
+let lastHeavyStatsUpdate = 0;
+let cachedTotalEnergy = 0;
+let cachedEnergyDrift = 0;
+let cachedKineticEnergy = 0;
 
 let fpsCounter = 0;
 let fpsLastTime = performance.now();
@@ -116,19 +135,21 @@ const fpsHistory = [];
 function applyDefaultsToControls() {
   bodiesInput.value = DEFAULTS.n;
   presetSelect.value = DEFAULTS.preset;
+  solverSelect.value = DEFAULTS.solver;
   visualModeSelect.value = DEFAULTS.visualMode;
 
   iterationsRange.value = DEFAULTS.iterations;
   gravityRange.value = DEFAULTS.g;
   dtRange.value = DEFAULTS.dt;
   softRange.value = DEFAULTS.softening;
-  bounceRange.value = DEFAULTS.bounce;
+  //bounceRange.value = DEFAULTS.bounce;
   trailRange.value = DEFAULTS.trail;
   radiusRange.value = DEFAULTS.radiusScale;
   glowRange.value = DEFAULTS.glow;
   bloomRange.value = DEFAULTS.bloom;
 
   syncLabels();
+  updateSolverWarning();
 }
 
 function syncLabels() {
@@ -136,12 +157,27 @@ function syncLabels() {
   gravityValue.textContent = gravityRange.value;
   dtValue.textContent = Number(dtRange.value).toFixed(3);
   softValue.textContent = softRange.value;
-  bounceValue.textContent = Number(bounceRange.value).toFixed(2);
+  //bounceValue.textContent = Number(bounceRange.value).toFixed(2);
   trailValue.textContent = Number(trailRange.value).toFixed(2);
   radiusValue.textContent = Number(radiusRange.value).toFixed(1);
   glowValue.textContent = Number(glowRange.value).toFixed(2);
   bloomValue.textContent = Number(bloomRange.value).toFixed(2);
   presetStat.textContent = presetSelect.value;
+}
+
+function updateSolverWarning() {
+  if (!solverWarning) return;
+
+  const isDirect = solverSelect.value === "direct";
+  const count = clampBodiesInput(bodiesInput.value);
+
+  if (isDirect && count >= 1500 && !solverWarningDismissed) {
+    solverWarningText.textContent =
+      "Для прямого метода большое число тел может снизить производительность.";
+    solverWarning.style.display = "block";
+  } else {
+    solverWarning.style.display = "none";
+  }
 }
 
 function clampBodiesInput(raw) {
@@ -154,12 +190,14 @@ function getSettings() {
   return {
     n: clampBodiesInput(bodiesInput.value),
     preset: presetSelect.value,
+    solver: solverSelect.value,
     visualMode: visualModeSelect.value,
     iterations: Number(iterationsRange.value),
     g: Number(gravityRange.value),
     dt: Number(dtRange.value),
     softening: Number(softRange.value),
-    bounce: Number(bounceRange.value),
+    //bounce: Number(bounceRange.value),
+    bounce: DEFAULTS.bounce,
     trail: Number(trailRange.value),
     radiusScale: Number(radiusRange.value),
     glow: Number(glowRange.value),
@@ -224,7 +262,7 @@ function createThreeScene() {
   controls.dampingFactor = 0.05;
   controls.target.set(0, 40, 0);
   controls.minDistance = 80;
-  controls.maxDistance = 1400;
+  controls.maxDistance = 2200;
   controls.update();
 
   particleTexture = createParticleTexture();
@@ -556,13 +594,16 @@ function createEngine() {
 
   engine = new NBodyEngine(currentBodyCount, WORLD_WIDTH, WORLD_HEIGHT, WORLD_DEPTH);
   engine.set_params(s.g, s.dt, s.softening, s.bounce);
+  engine.set_solver_mode(s.solver);
   applyPreset();
+  resetBenchmarkTracking();
 
   refreshWasmViews();
   copyPositionsFromSnapshot(true);
   rebuildColors(s.glow);
   updateVisualSettings();
 
+  updateBenchmarkStats();
   bodiesStat.textContent = String(currentBodyCount);
   statusStat.textContent = "готово";
   renderScene();
@@ -597,10 +638,16 @@ function applyEngineParams() {
   engine.set_params(s.g, s.dt, s.softening, s.bounce);
 }
 
+function applySolverMode() {
+  if (!engine) return;
+  engine.set_solver_mode(getSettings().solver);
+}
+
 function refreshPresetImmediately() {
   if (!engine) return;
   pauseSimulation();
   applyEngineParams();
+  applySolverMode();
   applyPreset();
   copyPositionsFromSnapshot(true);
   rebuildColors(getSettings().glow);
@@ -696,8 +743,55 @@ function drawFpsGraph() {
   fpsCtx.fillStyle = bg;
   fpsCtx.fillRect(0, 0, w, h);
 
-  const axisMax = Math.max(60, Math.ceil(Math.max(...fpsHistory, 60) / 10) * 10);
-  const labelValues = axisMax >= 90 ? [0, 30, 60, 90] : [0, 20, 40, 60];
+  const maxFpsValue = Math.max(...fpsHistory, 60);
+  const axisMax = Math.max(60, Math.ceil(maxFpsValue / 20) * 20);
+
+  const labelStep = axisMax <= 100 ? 20 : 30;
+  const labelValues = [];
+
+  for (let v = 0; v <= axisMax; v += labelStep) {
+    labelValues.push(v);
+  }
+
+  const minorStep = labelStep / 2;
+  const minorValues = [];
+
+  for (let v = minorStep; v < axisMax; v += minorStep) {
+    if (!labelValues.includes(v)) {
+      minorValues.push(v);
+    }
+  }
+
+  fpsCtx.strokeStyle = "rgba(255,255,255,0.04)";
+  fpsCtx.lineWidth = 1;
+
+  minorValues.forEach((val) => {
+    const y = topPad + chartH - (val / axisMax) * chartH;
+    fpsCtx.beginPath();
+    fpsCtx.moveTo(leftPad, y);
+    fpsCtx.lineTo(w - rightPad, y);
+    fpsCtx.stroke();
+  });
+
+  fpsCtx.strokeStyle = "rgba(255,255,255,0.08)";
+  fpsCtx.lineWidth = 1;
+
+  labelValues.forEach((val) => {
+    const y = topPad + chartH - (val / axisMax) * chartH;
+    fpsCtx.beginPath();
+    fpsCtx.moveTo(leftPad, y);
+    fpsCtx.lineTo(w - rightPad, y);
+    fpsCtx.stroke();
+  });
+
+  fpsCtx.fillStyle = "rgba(255,255,255,0.40)";
+  fpsCtx.font = "11px Inter, system-ui, sans-serif";
+  fpsCtx.textBaseline = "middle";
+
+  labelValues.forEach((val) => {
+    const y = topPad + chartH - (val / axisMax) * chartH;
+    fpsCtx.fillText(String(val), 6, y);
+  });
 
   fpsCtx.strokeStyle = "rgba(255,255,255,0.08)";
   fpsCtx.lineWidth = 1;
@@ -792,6 +886,12 @@ function startPhysicsLoop() {
     engine.step_many(s.iterations);
     const t1 = performance.now();
 
+    const physicsMs = t1 - t0;
+    physicsSamples.push(physicsMs);
+    if (physicsSamples.length > 120) {
+      physicsSamples.shift();
+    }
+
     refreshWasmViews();
     copyPositionsFromSnapshot(false);
 
@@ -801,12 +901,27 @@ function startPhysicsLoop() {
       colorUpdateCounter = 0;
     }
 
-    statsUpdateCounter++;
-    if (statsUpdateCounter >= 15) {
-      physicsStat.textContent = `${(t1 - t0).toFixed(3)} ms`;
-      kineticStat.textContent = engine.kinetic_energy().toFixed(2);
-      totalEnergyStat.textContent = engine.total_energy().toFixed(2);
-      statsUpdateCounter = 0;
+    const nowStats = performance.now();
+
+    if (nowStats - lastLightStatsUpdate >= 180) {
+      physicsStat.textContent = `${physicsMs.toFixed(3)} ms`;
+      cachedKineticEnergy = engine.kinetic_energy();
+      updateBenchmarkStats();
+      lastLightStatsUpdate = nowStats;
+    }
+
+    if (nowStats - lastHeavyStatsUpdate >= 5000) {
+      cachedTotalEnergy = engine.total_energy();
+
+      if (baselineTotalEnergy !== null && baselineTotalEnergy !== 0) {
+        cachedEnergyDrift =
+          Math.abs((cachedTotalEnergy - baselineTotalEnergy) / baselineTotalEnergy) * 100;
+      } else {
+        cachedEnergyDrift = 0;
+      }
+
+      updateBenchmarkStats();
+      lastHeavyStatsUpdate = nowStats;
     }
 
     fpsCounter++;
@@ -837,7 +952,7 @@ function setupListeners() {
     gravityRange,
     dtRange,
     softRange,
-    bounceRange,
+    //bounceRange,
     radiusRange,
     glowRange,
     trailRange,
@@ -858,6 +973,13 @@ function setupListeners() {
     renderScene();
   });
 
+  solverSelect.addEventListener("change", () => {
+    solverWarningDismissed = false;
+    updateSolverWarning();
+    applySolverMode();
+    updateBenchmarkStats();
+  });
+
   presetSelect.addEventListener("change", () => {
     syncLabels();
     refreshPresetImmediately();
@@ -868,11 +990,13 @@ function setupListeners() {
     if (String(n) !== bodiesInput.value && bodiesInput.value !== "") {
       bodiesInput.value = n;
     }
+    updateSolverWarning();
   });
 
   bodiesInput.addEventListener("change", () => {
     const n = clampBodiesInput(bodiesInput.value);
     bodiesInput.value = n;
+    updateSolverWarning();
     resetSystem();
   });
 
@@ -888,6 +1012,13 @@ function setupListeners() {
       renderScene();
     }, 50);
   });
+  
+  if (solverWarningClose) {
+    solverWarningClose.addEventListener("click", () => {
+      solverWarningDismissed = true;
+      solverWarning.style.display = "none";
+    });
+  }
 
   window.addEventListener("resize", resizeToDisplaySize);
 }
@@ -930,18 +1061,65 @@ function resizeToDisplaySize() {
   }
 }
 
+function resetBenchmarkTracking() {
+  physicsSamples = [];
+
+  if (engine) {
+    cachedKineticEnergy = engine.kinetic_energy();
+    cachedTotalEnergy = engine.total_energy();
+    baselineTotalEnergy = cachedTotalEnergy;
+    cachedEnergyDrift = 0;
+  } else {
+    baselineTotalEnergy = null;
+    cachedKineticEnergy = 0;
+    cachedTotalEnergy = 0;
+    cachedEnergyDrift = 0;
+  }
+
+  lastLightStatsUpdate = performance.now();
+  lastHeavyStatsUpdate = performance.now();
+}
+
+function updateBenchmarkStats() {
+  const solverLabel =
+    solverSelect.value === "direct" ? "Прямой" : "Barnes–Hut";
+
+  if (solverStat) {
+    solverStat.textContent = solverLabel;
+  }
+
+  if (avgPhysicsStat) {
+    if (physicsSamples.length === 0) {
+      avgPhysicsStat.textContent = "0 ms";
+    } else {
+      const avg =
+        physicsSamples.reduce((sum, v) => sum + v, 0) / physicsSamples.length;
+      avgPhysicsStat.textContent = `${avg.toFixed(3)} ms`;
+    }
+  }
+
+  if (kineticStat) {
+    kineticStat.textContent = cachedKineticEnergy.toFixed(2);
+  }
+
+  if (totalEnergyStat) {
+    totalEnergyStat.textContent = cachedTotalEnergy.toFixed(2);
+  }
+
+  if (energyDriftStat) {
+    energyDriftStat.textContent = `${cachedEnergyDrift.toFixed(2)}%`;
+  }
+}
+
 async function registerSW() {
   if (!("serviceWorker" in navigator)) {
-    swStat.textContent = "unsupported";
     return;
   }
 
   try {
-    const reg = await navigator.serviceWorker.register("./sw.js");
-    swStat.textContent = reg.active ? "active" : "registered";
+    await navigator.serviceWorker.register("./sw.js");
   } catch (err) {
     console.error("Ошибка service worker:", err);
-    swStat.textContent = "error";
   }
 }
 
@@ -976,7 +1154,7 @@ async function boot() {
   } catch (err) {
     console.error("Ошибка boot():", err);
     statusStat.textContent = "ошибка запуска";
-    swStat.textContent = "check console";
+    //swStat.textContent = "check console";
   }
 }
 
