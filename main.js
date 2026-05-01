@@ -130,6 +130,9 @@ let cachedKineticEnergy = 0;
 let fpsCounter = 0;
 let fpsLastTime = performance.now();
 let currentFPS = 0;
+
+let lastFpsGraphUpdate = 0;
+
 const fpsHistory = [];
 
 function applyDefaultsToControls() {
@@ -723,6 +726,13 @@ function startRenderLoop() {
   renderTick();
 }
 
+function getFpsGraphUpdateInterval(fps) {
+  if (fps < 200) return 250;
+  if (fps < 500) return 500;
+  if (fps < 1000) return 800;
+  return 1200;
+}
+
 function drawFpsGraph() {
   const w = fpsCanvas.width;
   const h = fpsCanvas.height;
@@ -744,9 +754,19 @@ function drawFpsGraph() {
   fpsCtx.fillRect(0, 0, w, h);
 
   const maxFpsValue = Math.max(...fpsHistory, 60);
-  const axisMax = Math.max(60, Math.ceil(maxFpsValue / 20) * 20);
 
-  const labelStep = axisMax <= 100 ? 20 : 30;
+  let labelStep = 20;
+
+  if (maxFpsValue > 200 && maxFpsValue <= 500) {
+    labelStep = 50;
+  } else if (maxFpsValue > 500 && maxFpsValue <= 1000) {
+    labelStep = 100;
+  } else if (maxFpsValue > 1000) {
+    labelStep = 200;
+  }
+
+  const axisMax = Math.max(60, Math.ceil(maxFpsValue / labelStep) * labelStep);
+
   const labelValues = [];
 
   for (let v = 0; v <= axisMax; v += labelStep) {
@@ -812,6 +832,10 @@ function drawFpsGraph() {
     const y = topPad + chartH - (val / axisMax) * chartH;
     fpsCtx.fillText(String(val), 6, y);
   });
+
+  for (let v = 0; v <= axisMax; v += labelStep) {
+    labelValues.push(v);
+  }
 
   if (fpsHistory.length < 2) return;
 
@@ -924,20 +948,23 @@ function startPhysicsLoop() {
       lastHeavyStatsUpdate = nowStats;
     }
 
-    fpsCounter++;
-    const now = performance.now();
+    const realFps = physicsMs > 0 ? 1000 / physicsMs : 0;
+    currentFPS = realFps;
 
-    if (now - fpsLastTime >= 1000) {
-      currentFPS = fpsCounter;
-      fpsBig.textContent = `${currentFPS} FPS`;
+    fpsBig.textContent = `${currentFPS.toFixed(0)} FPS`;
 
+    const nowFpsGraph = performance.now();
+    const graphInterval = getFpsGraphUpdateInterval(currentFPS);
+
+    if (nowFpsGraph - lastFpsGraphUpdate >= graphInterval) {
       fpsHistory.push(currentFPS);
-      if (fpsHistory.length > 80) fpsHistory.shift();
+
+      if (fpsHistory.length > 90) {
+        fpsHistory.shift();
+      }
 
       drawFpsGraph();
-
-      fpsCounter = 0;
-      fpsLastTime = now;
+      lastFpsGraphUpdate = nowFpsGraph;
     }
 
     physicsRafId = requestAnimationFrame(physicsTick);
