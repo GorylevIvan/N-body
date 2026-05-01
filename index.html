@@ -166,58 +166,67 @@
     }
 
     .settings-panel {
-      position: relative;
       height: 100%;
-      padding: 20px 18px;
-      overflow-y: auto;
+      padding: 18px;
+      overflow: hidden;
       min-height: 0;
+      display: flex;
+      flex-direction: column;
 
       background:
         linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
-        radial-gradient(circle at 18% 10%, rgba(103,232,249,0.10), transparent 28%),
-        radial-gradient(circle at 82% 20%, rgba(167,139,250,0.14), transparent 32%),
-        radial-gradient(circle at 40% 78%, rgba(243,114,255,0.08), transparent 34%),
         var(--glass);
-
-      background-size:
-        100% 2200px,
-        100% 2200px,
-        100% 2200px,
-        100% 2200px,
-        100% 2200px;
-
-      background-repeat: no-repeat;
     }
 
-    .settings-panel::before {
-      display: none;
-    }
-
-    .settings-panel::-webkit-scrollbar,
     .stats-list::-webkit-scrollbar {
       width: 8px;
     }
 
-    .settings-panel::-webkit-scrollbar-thumb,
     .stats-list::-webkit-scrollbar-thumb {
       background: rgba(255,255,255,0.14);
       border-radius: 999px;
     }
 
     .settings-title {
-      font-size: 28px;
+      font-size: 22px;
       font-weight: 700;
       margin-bottom: 18px;
-      text-shadow: 0 0 18px rgba(255,255,255,0.12);
+      text-shadow: 0 0 16px rgba(255,255,255,0.08);
+    }
+
+    .settings-list {
+      position: relative;
+      z-index: 1;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
+
+      padding: 2px 10px 14px 2px;
+      margin-right: -8px;
+
+      background: transparent;
+    }
+
+    .settings-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .settings-list::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.14);
+      border-radius: 999px;
     }
 
     .group {
       margin-bottom: 18px;
       padding: 14px;
-      background: rgba(7, 10, 35, 0.18);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
+        rgba(10, 7, 37, 0.52);
       border: 1px solid var(--line-soft);
       border-radius: 18px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.03),
+        0 4px 14px rgba(0,0,0,0.12);
     }
 
     .group h3 {
@@ -334,6 +343,7 @@
 
     .settings-actions {
       margin-top: 18px;
+      padding-bottom: 18px;
     }
 
     .btn {
@@ -567,7 +577,11 @@
       gap: 12px;
       max-height: 100%;
       overflow: auto;
-      padding-right: 2px;
+
+      padding: 2px 10px 14px 2px;
+      margin-right: -8px;
+
+      background: transparent;
     }
 
     .stat-item {
@@ -579,7 +593,7 @@
       padding: 14px 16px;
       box-shadow:
         inset 0 1px 0 rgba(255,255,255,0.03),
-        0 8px 24px rgba(0,0,0,0.16);
+        0 4px 14px rgba(0,0,0,0.12);
     }
 
     .stat-item .k {
@@ -650,117 +664,131 @@
   <div class="app">
     <aside class="glass-panel settings-panel">
       <div class="settings-title">Настройки</div>
+      <div class="settings-list">
 
-      <div class="group">
-        <h3>Сценарий</h3>
+        <div class="group">
+          <h3>Сценарий</h3>
 
-        <div class="field">
-          <label for="presetSelect">Пресет симуляции</label>
+          <div class="field">
+            <label for="presetSelect">Пресет симуляции</label>
 
-          <select id="presetSelect">
-            <option value="galaxy" selected>Галактика</option>
-            <option value="collapse">Коллапс</option>
-            <option value="explosion">Взрыв</option>
-            <option value="two-galaxies">Две галактики</option>
-          </select>
-        </div>
+            <select id="presetSelect">
+              <option value="galaxy" selected>Галактика</option>
+              <option value="collapse">Коллапс</option>
+              <option value="explosion">Взрыв</option>
+              <option value="two-galaxies">Две галактики</option>
+            </select>
+          </div>
 
-        <div class="field">
-          <label for="solverSelect">Алгоритм расчёта</label>
-          <select id="solverSelect">
-            <option value="barnes_hut">Barnes–Hut</option>
-            <option value="direct">Прямой</option>
-          </select>
-        </div>
+          <div class="field">
+            <label for="performancePresetSelect">Пресет нагрузки</label>
+            <select id="performancePresetSelect">
+              <option value="custom">Пользовательский</option>
+              <option value="light">Лёгкий</option>
+              <option value="balanced">Сбалансированный</option>
+              <option value="quality">Качественный</option>
+              <option value="stress">Стресс-тест</option>
+              <option value="direct-test">Тест прямого метода</option>
+            </select>
+          </div>
 
-        <div id="solverWarning" class="solver-warning" style="display:none;">
-          <div class="solver-warning-row">
-            <div id="solverWarningText">
-              Для прямого метода большое число тел может снизить производительность.
+          <div class="field">
+            <label for="solverSelect">Алгоритм расчёта</label>
+            <select id="solverSelect">
+              <option value="barnes_hut">Barnes–Hut</option>
+              <option value="direct">Прямой</option>
+            </select>
+          </div>
+
+          <div id="solverWarning" class="solver-warning" style="display:none;">
+            <div class="solver-warning-row">
+              <div id="solverWarningText">
+                Для прямого метода большое число тел может снизить производительность.
+              </div>
+              <button id="solverWarningClose" type="button" class="solver-warning-close" aria-label="Закрыть">×</button>
             </div>
-            <button id="solverWarningClose" type="button" class="solver-warning-close" aria-label="Закрыть">×</button>
+          </div>
+
+          <div class="field">
+            <label for="bodiesInput">Количество тел</label>
+            <input id="bodiesInput" type="number" min="1" max="50000" step="1" value="400" />
+          </div>
+
+          <div class="field">
+            <label for="iterationsRange">Итераций за кадр</label>
+            <input id="iterationsRange" type="range" min="1" max="12" step="1" value="1" />
+            <div class="value" id="iterationsValue">1</div>
           </div>
         </div>
 
-        <div class="field">
-          <label for="bodiesInput">Количество тел</label>
-          <input id="bodiesInput" type="number" min="1" max="50000" step="1" value="400" />
+        <div class="group">
+          <h3>Физика</h3>
+
+          <div class="field">
+            <label for="gravityRange">Сила притяжения</label>
+            <input id="gravityRange" type="range" min="1" max="100" step="1" value="30" />
+            <div class="value" id="gravityValue">30</div>
+          </div>
+
+          <div class="field">
+            <label for="dtRange">Шаг времени</label>
+            <input id="dtRange" type="range" min="0.001" max="0.05" step="0.001" value="0.008" />
+            <div class="value" id="dtValue">0.008</div>
+          </div>
+
+          <div class="field">
+            <label for="softRange">Смягчение гравитации</label>
+            <input id="softRange" type="range" min="1" max="40" step="1" value="8" />
+            <div class="value" id="softValue">8</div>
+          </div>
+                <!-- 
+          <div class="field">
+            <label for="bounceRange">Упругость границ</label>
+            <input id="bounceRange" type="range" min="0" max="1" step="0.01" value="0.85" />
+            <div class="value" id="bounceValue">0.85</div>
+          </div> -->
         </div>
 
-        <div class="field">
-          <label for="iterationsRange">Итераций за кадр</label>
-          <input id="iterationsRange" type="range" min="1" max="12" step="1" value="1" />
-          <div class="value" id="iterationsValue">1</div>
-        </div>
-      </div>
+        <div class="group">
+          <h3>Визуализация</h3>
 
-      <div class="group">
-        <h3>Физика</h3>
+          <div class="field">
+            <label for="visualModeSelect">Режим отображения</label>
+            <select id="visualModeSelect">
+              <option value="normal">Обычный</option>
+              <option value="bright">Яркий</option>
+              <option value="cinematic">Кинематографичный</option>
+            </select>
+          </div>
 
-        <div class="field">
-          <label for="gravityRange">Сила притяжения</label>
-          <input id="gravityRange" type="range" min="1" max="100" step="1" value="30" />
-          <div class="value" id="gravityValue">30</div>
-        </div>
+          <div class="field">
+            <label for="trailRange">Длина следа</label>
+            <input id="trailRange" type="range" min="0" max="1" step="0.01" value="0.45" />
+            <div class="value" id="trailValue">0.45</div>
+          </div>
 
-        <div class="field">
-          <label for="dtRange">Шаг времени</label>
-          <input id="dtRange" type="range" min="0.001" max="0.05" step="0.001" value="0.008" />
-          <div class="value" id="dtValue">0.008</div>
-        </div>
+          <div class="field">
+            <label for="radiusRange">Размер частиц</label>
+            <input id="radiusRange" type="range" min="1" max="8" step="0.1" value="2.4" />
+            <div class="value" id="radiusValue">2.4</div>
+          </div>
 
-        <div class="field">
-          <label for="softRange">Смягчение гравитации</label>
-          <input id="softRange" type="range" min="1" max="40" step="1" value="8" />
-          <div class="value" id="softValue">8</div>
-        </div>
-<!-- 
-        <div class="field">
-          <label for="bounceRange">Упругость границ</label>
-          <input id="bounceRange" type="range" min="0" max="1" step="0.01" value="0.85" />
-          <div class="value" id="bounceValue">0.85</div>
-        </div> -->
-      </div>
+          <div class="field">
+            <label for="glowRange">Яркость свечения</label>
+            <input id="glowRange" type="range" min="0" max="2.5" step="0.01" value="1.15" />
+            <div class="value" id="glowValue">1.15</div>
+          </div>
 
-      <div class="group">
-        <h3>Визуализация</h3>
-
-        <div class="field">
-          <label for="visualModeSelect">Режим отображения</label>
-          <select id="visualModeSelect">
-            <option value="normal">Обычный</option>
-            <option value="bright">Яркий</option>
-            <option value="cinematic">Кинематографичный</option>
-          </select>
+          <div class="field">
+            <label for="bloomRange">Интенсивность свечения</label>
+            <input id="bloomRange" type="range" min="0" max="3.5" step="0.01" value="1.8" />
+            <div class="value" id="bloomValue">1.80</div>
+          </div>
         </div>
 
-        <div class="field">
-          <label for="trailRange">Длина следа</label>
-          <input id="trailRange" type="range" min="0" max="1" step="0.01" value="0.45" />
-          <div class="value" id="trailValue">0.45</div>
+        <div class="settings-actions">
+          <button id="defaultsBtn" class="btn btn-warning">Сброс настроек</button>
         </div>
-
-        <div class="field">
-          <label for="radiusRange">Размер частиц</label>
-          <input id="radiusRange" type="range" min="1" max="8" step="0.1" value="2.4" />
-          <div class="value" id="radiusValue">2.4</div>
-        </div>
-
-        <div class="field">
-          <label for="glowRange">Яркость свечения</label>
-          <input id="glowRange" type="range" min="0" max="2.5" step="0.01" value="1.15" />
-          <div class="value" id="glowValue">1.15</div>
-        </div>
-
-        <div class="field">
-          <label for="bloomRange">Интенсивность свечения</label>
-          <input id="bloomRange" type="range" min="0" max="3.5" step="0.01" value="1.8" />
-          <div class="value" id="bloomValue">1.80</div>
-        </div>
-      </div>
-
-      <div class="settings-actions">
-        <button id="defaultsBtn" class="btn btn-warning">Сброс настроек</button>
       </div>
     </aside>
 

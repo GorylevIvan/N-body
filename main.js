@@ -26,6 +26,78 @@ const DEFAULTS = {
   visualMode: "bright",
 };
 
+const PERFORMANCE_PRESETS = {
+  light: {
+    n: 300,
+    solver: "barnes_hut",
+    iterations: 1,
+    g: 24,
+    dt: 0.006,
+    softening: 12,
+    trail: 0.25,
+    radiusScale: 3.8,
+    glow: 1.0,
+    bloom: 1.2,
+    visualMode: "normal",
+  },
+
+  balanced: {
+    n: 1000,
+    solver: "barnes_hut",
+    iterations: 1,
+    g: 30,
+    dt: 0.008,
+    softening: 8,
+    trail: 0.45,
+    radiusScale: 4.5,
+    glow: 1.4,
+    bloom: 1.8,
+    visualMode: "bright",
+  },
+
+  quality: {
+    n: 2500,
+    solver: "barnes_hut",
+    iterations: 1,
+    g: 34,
+    dt: 0.007,
+    softening: 9,
+    trail: 0.55,
+    radiusScale: 5.0,
+    glow: 1.7,
+    bloom: 2.3,
+    visualMode: "cinematic",
+  },
+
+  stress: {
+    n: 10000,
+    solver: "barnes_hut",
+    iterations: 10,
+    g: 26,
+    dt: 0.006,
+    softening: 14,
+    trail: 0.0,
+    radiusScale: 2.8,
+    glow: 1.2,
+    bloom: 1.3,
+    visualMode: "bright",
+  },
+
+  "direct-test": {
+    n: 800,
+    solver: "direct",
+    iterations: 1,
+    g: 26,
+    dt: 0.006,
+    softening: 10,
+    trail: 0.25,
+    radiusScale: 4.0,
+    glow: 1.2,
+    bloom: 1.5,
+    visualMode: "normal",
+  },
+};
+
 const canvas = document.getElementById("canvas");
 
 const fpsCanvas = document.getElementById("fpsCanvas");
@@ -42,6 +114,7 @@ const solverSelect = document.getElementById("solverSelect");
 const solverWarning = document.getElementById("solverWarning");
 const bodiesInput = document.getElementById("bodiesInput");
 const visualModeSelect = document.getElementById("visualModeSelect");
+const performancePresetSelect = document.getElementById("performancePresetSelect");
 
 const iterationsRange = document.getElementById("iterationsRange");
 const gravityRange = document.getElementById("gravityRange");
@@ -140,7 +213,7 @@ function applyDefaultsToControls() {
   presetSelect.value = DEFAULTS.preset;
   solverSelect.value = DEFAULTS.solver;
   visualModeSelect.value = DEFAULTS.visualMode;
-
+  performancePresetSelect.value = "balanced";
   iterationsRange.value = DEFAULTS.iterations;
   gravityRange.value = DEFAULTS.g;
   dtRange.value = DEFAULTS.dt;
@@ -979,13 +1052,14 @@ function setupListeners() {
     gravityRange,
     dtRange,
     softRange,
-    //bounceRange,
     radiusRange,
     glowRange,
     trailRange,
     bloomRange,
   ].forEach((el) => {
     el.addEventListener("input", () => {
+      markPerformancePresetAsCustom();
+
       syncLabels();
       applyEngineParams();
       updateVisualSettings();
@@ -995,12 +1069,20 @@ function setupListeners() {
   });
 
   visualModeSelect.addEventListener("change", () => {
+    markPerformancePresetAsCustom();
+
     updateVisualSettings();
     rebuildColors(getSettings().glow);
     renderScene();
   });
 
+  performancePresetSelect.addEventListener("change", () => {
+    applyPerformancePreset(performancePresetSelect.value);
+  });
+
   solverSelect.addEventListener("change", () => {
+    markPerformancePresetAsCustom();
+
     solverWarningDismissed = false;
     updateSolverWarning();
     applySolverMode();
@@ -1021,6 +1103,8 @@ function setupListeners() {
   });
 
   bodiesInput.addEventListener("change", () => {
+    markPerformancePresetAsCustom();
+
     const n = clampBodiesInput(bodiesInput.value);
     bodiesInput.value = n;
     updateSolverWarning();
@@ -1135,6 +1219,41 @@ function updateBenchmarkStats() {
 
   if (energyDriftStat) {
     energyDriftStat.textContent = `${cachedEnergyDrift.toFixed(2)}%`;
+  }
+}
+
+function applyPerformancePreset(presetName) {
+  if (!presetName || presetName === "custom") return;
+
+  const preset = PERFORMANCE_PRESETS[presetName];
+  if (!preset) return;
+
+  pauseSimulation();
+
+  bodiesInput.value = preset.n;
+  solverSelect.value = preset.solver;
+
+  iterationsRange.value = preset.iterations;
+  gravityRange.value = preset.g;
+  dtRange.value = preset.dt;
+  softRange.value = preset.softening;
+  trailRange.value = preset.trail;
+  radiusRange.value = preset.radiusScale;
+  glowRange.value = preset.glow;
+  bloomRange.value = preset.bloom;
+  visualModeSelect.value = preset.visualMode;
+
+  solverWarningDismissed = false;
+
+  syncLabels();
+  updateSolverWarning();
+
+  createEngine();
+}
+
+function markPerformancePresetAsCustom() {
+  if (performancePresetSelect) {
+    performancePresetSelect.value = "custom";
   }
 }
 
