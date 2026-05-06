@@ -661,9 +661,23 @@
         padding: 10px;
         gap: 10px;
 
-        grid-template-columns: 260px minmax(360px, 1fr) 230px;
+        grid-template-columns:
+          minmax(220px, 28vw)
+          minmax(0, 1fr)
+          minmax(180px, 23vw);
+
         grid-template-rows: 1fr;
         align-items: stretch;
+        overflow: hidden;
+      }
+
+      .settings-panel,
+      .right-column,
+      .center-column,
+      .sim-shell,
+      .sim-panel,
+      .glass-panel {
+        min-width: 0;
       }
 
       .settings-panel,
@@ -725,6 +739,7 @@
 
       .center-column {
         gap: 10px;
+        min-width: 0;
       }
 
       .sim-shell {
@@ -738,13 +753,15 @@
 
       .controls-row {
         gap: 10px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
 
       .controls-row .btn {
+        min-width: 0;
         min-height: 44px;
         font-size: 13px;
         border-radius: 14px;
-        padding: 10px 12px;
+        padding: 10px 8px;
       }
 
       .fullscreen-btn {
@@ -758,21 +775,28 @@
       .right-column {
         grid-template-rows: 210px minmax(0, 1fr);
         gap: 10px;
+        overflow: hidden;
       }
 
       .fps-panel,
       .stats-panel {
         padding: 14px;
+        min-width: 0;
       }
 
       .panel-title {
         font-size: 18px;
         margin-bottom: 8px;
+        line-height: 1.1;
       }
 
       .fps-value {
         font-size: 22px;
         margin-bottom: 6px;
+      }
+
+      .fps-graph-wrap {
+        min-width: 0;
       }
 
       .stats-list {
@@ -792,7 +816,53 @@
       }
 
       .stat-item .v {
-        font-size: 17px;
+        font-size: 16px;
+        line-height: 1.1;
+        word-break: break-word;
+      }
+    }
+
+    @media (max-width: 900px) and (orientation: landscape) {
+      .app {
+        padding: 8px;
+        gap: 8px;
+
+        grid-template-columns:
+          minmax(205px, 29vw)
+          minmax(0, 1fr)
+          minmax(160px, 22vw);
+      }
+
+      .settings-panel,
+      .fps-panel,
+      .stats-panel {
+        padding: 12px;
+      }
+
+      .settings-title {
+        font-size: 20px;
+      }
+
+      .panel-title {
+        font-size: 16px;
+      }
+
+      .fps-value {
+        font-size: 20px;
+      }
+
+      .right-column {
+        grid-template-rows: 190px minmax(0, 1fr);
+      }
+
+      .controls-row .btn {
+        font-size: 12px;
+        min-height: 42px;
+        padding: 8px 6px;
+      }
+
+      .stat-item .v {
+        font-size: 14px;
       }
     }
 
