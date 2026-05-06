@@ -102,10 +102,19 @@ const canvas = document.getElementById("canvas");
 
 const fpsCanvas = document.getElementById("fpsCanvas");
 const fpsCtx = fpsCanvas.getContext("2d");
+const cpuCanvas = document.getElementById("cpuCanvas");
+const cpuCtx = cpuCanvas.getContext("2d");
+const cpuLoadValue = document.getElementById("cpuLoadValue");
 
 const startBtn = document.getElementById("startBtn");
 const pauseBtn = document.getElementById("pauseBtn");
 const resetBtn = document.getElementById("resetBtn");
+const fullscreenStartBtn = document.getElementById("fullscreenStartBtn");
+const fullscreenPauseBtn = document.getElementById("fullscreenPauseBtn");
+const fullscreenResetBtn = document.getElementById("fullscreenResetBtn");
+
+const fullscreenFpsValue = document.getElementById("fullscreenFpsValue");
+const fullscreenCpuValue = document.getElementById("fullscreenCpuValue");
 const defaultsBtn = document.getElementById("defaultsBtn");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
 
@@ -207,6 +216,8 @@ let currentFPS = 0;
 let lastFpsGraphUpdate = 0;
 
 const fpsHistory = [];
+const TARGET_FRAME_MS = 1000 / 60;
+const cpuHistory = [];
 
 function applyDefaultsToControls() {
   bodiesInput.value = DEFAULTS.n;
@@ -968,6 +979,125 @@ function drawFpsGraph() {
   fpsCtx.fill();
 }
 
+function calculateCpuLoadEstimate(physicsMs) {
+  if (!Number.isFinite(physicsMs) || physicsMs <= 0) return 0;
+
+  return Math.min(999, (physicsMs / TARGET_FRAME_MS) * 100);
+}
+
+function drawCpuGraph() {
+  const w = cpuCanvas.width;
+  const h = cpuCanvas.height;
+
+  cpuCtx.clearRect(0, 0, w, h);
+
+  const leftPad = 32;
+  const rightPad = 10;
+  const topPad = 8;
+  const bottomPad = 10;
+  const chartW = w - leftPad - rightPad;
+  const chartH = h - topPad - bottomPad;
+
+  const bg = cpuCtx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, "rgba(251, 191, 36, 0.05)");
+  bg.addColorStop(0.55, "rgba(167, 139, 250, 0.03)");
+  bg.addColorStop(1, "rgba(10, 8, 30, 0.0)");
+  cpuCtx.fillStyle = bg;
+  cpuCtx.fillRect(0, 0, w, h);
+
+  const maxValue = Math.max(...cpuHistory, 100);
+  let labelStep = 25;
+
+  if (maxValue > 150 && maxValue <= 300) {
+    labelStep = 50;
+  } else if (maxValue > 300) {
+    labelStep = 100;
+  }
+
+  const axisMax = Math.max(100, Math.ceil(maxValue / labelStep) * labelStep);
+
+  const labelValues = [];
+  for (let v = 0; v <= axisMax; v += labelStep) {
+    labelValues.push(v);
+  }
+
+  cpuCtx.strokeStyle = "rgba(255,255,255,0.06)";
+  cpuCtx.lineWidth = 1;
+
+  labelValues.forEach((val) => {
+    const y = topPad + chartH - (val / axisMax) * chartH;
+    cpuCtx.beginPath();
+    cpuCtx.moveTo(leftPad, y);
+    cpuCtx.lineTo(w - rightPad, y);
+    cpuCtx.stroke();
+  });
+
+  // Линия 100% — важная граница
+  if (axisMax >= 100) {
+    const y100 = topPad + chartH - (100 / axisMax) * chartH;
+    cpuCtx.beginPath();
+    cpuCtx.moveTo(leftPad, y100);
+    cpuCtx.lineTo(w - rightPad, y100);
+    cpuCtx.strokeStyle = "rgba(251, 191, 36, 0.28)";
+    cpuCtx.lineWidth = 2;
+    cpuCtx.stroke();
+  }
+
+  cpuCtx.fillStyle = "rgba(255,255,255,0.40)";
+  cpuCtx.font = "10px Inter, system-ui, sans-serif";
+  cpuCtx.textBaseline = "middle";
+
+  labelValues.forEach((val) => {
+    const y = topPad + chartH - (val / axisMax) * chartH;
+    cpuCtx.fillText(`${val}`, 6, y);
+  });
+
+  if (cpuHistory.length < 2) return;
+
+  const points = cpuHistory.map((load, i) => {
+    const x = leftPad + (i / (cpuHistory.length - 1)) * chartW;
+    const y = topPad + chartH - (load / axisMax) * chartH;
+    return { x, y };
+  });
+
+  const areaGradient = cpuCtx.createLinearGradient(0, topPad, 0, h);
+  areaGradient.addColorStop(0, "rgba(251, 191, 36, 0.22)");
+  areaGradient.addColorStop(0.6, "rgba(251, 146, 60, 0.12)");
+  areaGradient.addColorStop(1, "rgba(251, 146, 60, 0.01)");
+
+  cpuCtx.beginPath();
+  cpuCtx.moveTo(points[0].x, topPad + chartH);
+  for (const p of points) cpuCtx.lineTo(p.x, p.y);
+  cpuCtx.lineTo(points[points.length - 1].x, topPad + chartH);
+  cpuCtx.closePath();
+  cpuCtx.fillStyle = areaGradient;
+  cpuCtx.fill();
+
+  cpuCtx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (i === 0) cpuCtx.moveTo(p.x, p.y);
+    else cpuCtx.lineTo(p.x, p.y);
+  }
+
+  const lineGradient = cpuCtx.createLinearGradient(leftPad, 0, w - rightPad, 0);
+  lineGradient.addColorStop(0, "#fbbf24");
+  lineGradient.addColorStop(0.55, "#fb923c");
+  lineGradient.addColorStop(1, "#f97316");
+
+  cpuCtx.strokeStyle = lineGradient;
+  cpuCtx.lineWidth = 2.5;
+  cpuCtx.lineCap = "round";
+  cpuCtx.lineJoin = "round";
+  cpuCtx.stroke();
+
+  const last = points[points.length - 1];
+  cpuCtx.beginPath();
+  cpuCtx.fillStyle = "#ffffff";
+  cpuCtx.arc(last.x, last.y, 2.5, 0, Math.PI * 2);
+  cpuCtx.fill();
+}
+
 function startPhysicsLoop() {
   if (physicsRafId !== null) return;
 
@@ -1026,6 +1156,10 @@ function startPhysicsLoop() {
 
     fpsBig.textContent = `${currentFPS.toFixed(0)} FPS`;
 
+    if (fullscreenFpsValue) {
+      fullscreenFpsValue.textContent = currentFPS.toFixed(0);
+    }
+
     const nowFpsGraph = performance.now();
     const graphInterval = getFpsGraphUpdateInterval(currentFPS);
 
@@ -1038,6 +1172,20 @@ function startPhysicsLoop() {
 
       drawFpsGraph();
       lastFpsGraphUpdate = nowFpsGraph;
+
+      const cpuLoad = calculateCpuLoadEstimate(physicsMs);
+      cpuLoadValue.textContent = `${cpuLoad.toFixed(0)}%`;
+
+      if (fullscreenCpuValue) {
+        fullscreenCpuValue.textContent = `${cpuLoad.toFixed(0)}%`;
+      }
+
+      cpuHistory.push(cpuLoad);
+      if (cpuHistory.length > 120) {
+        cpuHistory.shift();
+      }
+
+      drawCpuGraph();
     }
 
     physicsRafId = requestAnimationFrame(physicsTick);
@@ -1114,6 +1262,9 @@ function setupListeners() {
   startBtn.addEventListener("click", startSimulation);
   pauseBtn.addEventListener("click", pauseSimulation);
   resetBtn.addEventListener("click", resetSystem);
+  fullscreenStartBtn.addEventListener("click", startSimulation);
+  fullscreenPauseBtn.addEventListener("click", pauseSimulation);
+  fullscreenResetBtn.addEventListener("click", resetSystem);
   defaultsBtn.addEventListener("click", resetSettings);
   fullscreenBtn.addEventListener("click", toggleFullscreen);
 
@@ -1169,6 +1320,16 @@ function resizeToDisplaySize() {
     fpsCanvas.width = fpsWidth;
     fpsCanvas.height = fpsHeight;
     drawFpsGraph();
+  }
+
+  const cpuRect = cpuCanvas.getBoundingClientRect();
+  const cpuWidth = Math.max(160, Math.floor(cpuRect.width));
+  const cpuHeight = Math.max(70, Math.floor(cpuRect.height));
+
+  if (cpuCanvas.width !== cpuWidth || cpuCanvas.height !== cpuHeight) {
+    cpuCanvas.width = cpuWidth;
+    cpuCanvas.height = cpuHeight;
+    drawCpuGraph();
   }
 }
 
@@ -1291,6 +1452,7 @@ async function boot() {
     resizeToDisplaySize();
     createEngine();
     drawFpsGraph();
+    drawCpuGraph();
     setupListeners();
     startRenderLoop();
 

@@ -141,6 +141,7 @@
       grid-template-columns: 320px minmax(0, 1fr) 280px;
       gap: 20px;
       align-items: stretch;
+      overflow: hidden;
     }
 
     .glass-panel {
@@ -166,25 +167,33 @@
     }
 
     .settings-panel {
-      height: 100%;
+      height: auto;
+      min-height: 100%;
       padding: 18px;
-      overflow: hidden;
-      min-height: 0;
+
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-bottom: 28px;
+
       display: flex;
       flex-direction: column;
 
       background:
         linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
         var(--glass);
+
+      background-size:
+        100% 3200px,
+        100% 3200px;
+
+      background-repeat: no-repeat;
+
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
-    .stats-list::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .stats-list::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.14);
-      border-radius: 999px;
+    .settings-panel::-webkit-scrollbar {
+      display: none;
     }
 
     .settings-title {
@@ -197,23 +206,14 @@
     .settings-list {
       position: relative;
       z-index: 1;
-      flex: 1 1 auto;
+      flex: 0 0 auto;
       min-height: 0;
-      overflow: auto;
-
-      padding: 2px 10px 14px 2px;
-      margin-right: -8px;
-
+      overflow: visible;
+      max-height: none;
+      height: auto;
+      padding-right: 0;
+      margin-right: 0;
       background: transparent;
-    }
-
-    .settings-list::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .settings-list::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.14);
-      border-radius: 999px;
     }
 
     .group {
@@ -360,8 +360,8 @@
         background 0.25s ease,
         filter 0.2s ease;
       box-shadow:
-        0 10px 28px rgba(0,0,0,0.28),
-        inset 0 1px 0 rgba(255,255,255,0.12);
+        0 6px 16px rgba(0,0,0,0.10),
+        inset 0 1px 0 rgba(255,255,255,0.05);
     }
 
     .btn:hover {
@@ -372,8 +372,8 @@
     .btn:active {
       transform: translateY(0) scale(0.98);
       box-shadow:
-        0 4px 12px rgba(0,0,0,0.2),
-        inset 0 1px 0 rgba(255,255,255,0.08);
+        0 3px 8px rgba(0,0,0,0.8),
+        inset 0 1px 0 rgba(255,255,255,0.04);
     }
 
     .btn-success {
@@ -506,17 +506,29 @@
 
     .right-column {
       height: 100%;
-      display: grid;
-      grid-template-rows: 260px minmax(0, 1fr);
-      gap: 20px;
-      min-width: 0;
       min-height: 0;
+      min-width: 0;
+
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+
+      overflow-y: auto;
+      overflow-x: hidden;
+
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .right-column::-webkit-scrollbar {
+      display: none;
     }
 
     .fps-panel,
     .stats-panel {
       padding: 18px;
-      min-height: 0;
+      min-height: auto;
+      flex: 0 0 auto;
       display: flex;
       flex-direction: column;
     }
@@ -575,11 +587,13 @@
     .stats-list {
       display: grid;
       gap: 12px;
-      max-height: 100%;
-      overflow: auto;
 
-      padding: 2px 10px 14px 2px;
-      margin-right: -8px;
+      max-height: none;
+      height: auto;
+      overflow: visible;
+
+      padding-right: 0;
+      margin-right: 0;
 
       background: transparent;
     }
@@ -608,6 +622,129 @@
       font-size: 22px;
       font-weight: 800;
       line-height: 1.15;
+    }
+
+        .fullscreen-hud {
+      display: none;
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+    }
+
+    .sim-panel:fullscreen .fullscreen-hud {
+      display: block;
+    }
+
+    .fullscreen-metrics {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      display: grid;
+      gap: 4px;
+      padding: 9px 11px;
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
+        rgba(8, 8, 22, 0.52);
+      border: 1px solid rgba(255,255,255,0.10);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow:
+        0 10px 28px rgba(0,0,0,0.24),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+      font-size: 12px;
+      line-height: 1.2;
+      color: rgba(245,243,255,0.82);
+      pointer-events: none;
+    }
+
+    .fullscreen-metrics span {
+      color: rgba(203,213,255,0.78);
+    }
+
+    .fullscreen-metrics strong {
+      color: #67e8f9;
+      font-weight: 800;
+      text-shadow:
+        0 0 10px rgba(103,232,249,0.45),
+        0 0 22px rgba(103,232,249,0.18);
+    }
+
+    .fullscreen-controls {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .fullscreen-control-btn {
+      min-width: 86px;
+      height: 38px;
+      padding: 0 14px;
+      border: none;
+      border-radius: 14px;
+      color: white;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow:
+        0 10px 26px rgba(0,0,0,0.28),
+        inset 0 1px 0 rgba(255,255,255,0.14);
+      transition:
+        transform 0.15s ease,
+        filter 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .fullscreen-control-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.06);
+    }
+
+    .fullscreen-control-btn:active {
+      transform: translateY(0) scale(0.98);
+    }
+
+    .fullscreen-start {
+      background: linear-gradient(135deg, #10b981, #34d399);
+    }
+
+    .fullscreen-pause {
+      background: linear-gradient(135deg, var(--pause-1), var(--pause-2));
+    }
+
+    .fullscreen-reset {
+      background: linear-gradient(135deg, #f43f5e, #fb7185);
+    }
+
+    .sim-panel:fullscreen .fullscreen-btn {
+      z-index: 6;
+    }
+
+    @media (max-width: 720px) {
+      .fullscreen-controls {
+        bottom: 12px;
+        gap: 8px;
+      }
+
+      .fullscreen-control-btn {
+        min-width: 72px;
+        height: 34px;
+        padding: 0 10px;
+        font-size: 12px;
+        border-radius: 12px;
+      }
+
+      .fullscreen-metrics {
+        top: 10px;
+        left: 10px;
+        font-size: 11px;
+        padding: 8px 10px;
+      }
     }
 
     @media (max-width: 1080px) and (orientation: portrait) {
@@ -642,8 +779,55 @@
       }
 
       .right-column {
-        grid-template-rows: 280px auto;
+        gap: 10px;
       }
+    }
+
+    .cpu-graph-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      margin-bottom: 6px;
+    }
+
+    .cpu-graph-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .cpu-graph-value {
+      font-size: 14px;
+      font-weight: 800;
+      color: #fbbf24;
+      text-shadow:
+        0 0 12px rgba(251, 191, 36, 0.38),
+        0 0 24px rgba(251, 191, 36, 0.18);
+    }
+
+    .cpu-graph-wrap {
+      position: relative;
+      height: 82px;
+      flex: 0 0 auto;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.10);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(251,191,36,0.08), transparent 35%),
+        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
+        rgba(8, 6, 28, 0.78);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.03),
+        0 10px 30px rgba(0,0,0,0.16);
+    }
+
+    #cpuCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: transparent;
     }
 
     @media (max-width: 1080px) and (orientation: landscape) {
@@ -773,15 +957,38 @@
       }
 
       .right-column {
-        grid-template-rows: 210px minmax(0, 1fr);
         gap: 10px;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
       }
 
       .fps-panel,
       .stats-panel {
         padding: 14px;
         min-width: 0;
+      }
+
+      .fps-graph-wrap {
+        min-height: 82px;
+        flex: 1 1 auto;
+      }
+
+      .cpu-graph-wrap {
+        height: 72px;
+        flex: 0 0 72px;
+      }
+
+      .cpu-graph-header {
+        margin-top: 6px;
+        margin-bottom: 4px;
+      }
+
+      .fps-panel {
+        overflow: hidden;
+      }
+
+      .stats-panel {
+        min-height: 170px;
       }
 
       .panel-title {
@@ -852,7 +1059,45 @@
       }
 
       .right-column {
-        grid-template-rows: 190px minmax(0, 1fr);
+        gap: 10px;
+      }
+
+          .fps-graph-wrap {
+        min-height: 70px;
+      }
+
+      .cpu-graph-wrap {
+        height: 58px;
+        flex-basis: 58px;
+      }
+
+      .fps-value {
+        font-size: 18px;
+        margin-bottom: 4px;
+      }
+
+      .cpu-graph-title {
+        font-size: 11px;
+      }
+
+      .cpu-graph-value {
+        font-size: 12px;
+      }
+
+      .stats-panel {
+        min-height: 165px;
+      }
+
+      .stat-item {
+        padding: 9px 10px;
+      }
+
+      .stat-item .k {
+        font-size: 9px;
+      }
+
+      .stat-item .v {
+        font-size: 13px;
       }
 
       .controls-row .btn {
@@ -1022,6 +1267,19 @@
         <div class="sim-panel">
           <canvas id="canvas"></canvas>
 
+          <div class="fullscreen-hud">
+            <div class="fullscreen-metrics">
+              <div><span>FPS:</span> <strong id="fullscreenFpsValue">0</strong></div>
+              <div><span>Нагрузка физики:</span> <strong id="fullscreenCpuValue">0%</strong></div>
+            </div>
+
+            <div class="fullscreen-controls">
+              <button id="fullscreenStartBtn" class="fullscreen-control-btn fullscreen-start" type="button">Старт</button>
+              <button id="fullscreenPauseBtn" class="fullscreen-control-btn fullscreen-pause" type="button">Пауза</button>
+              <button id="fullscreenResetBtn" class="fullscreen-control-btn fullscreen-reset" type="button">Сброс</button>
+            </div>
+          </div>
+
           <button id="fullscreenBtn" class="fullscreen-btn" aria-label="Fullscreen">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M8 3H3V8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1047,6 +1305,15 @@
 
         <div class="fps-graph-wrap">
           <canvas id="fpsCanvas"></canvas>
+        </div>
+
+        <div class="cpu-graph-header">
+          <div class="cpu-graph-title">Нагрузка физики</div>
+          <div class="cpu-graph-value" id="cpuLoadValue">0%</div>
+        </div>
+
+        <div class="cpu-graph-wrap">
+          <canvas id="cpuCanvas"></canvas>
         </div>
       </section>
 
