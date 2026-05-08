@@ -354,6 +354,9 @@
       font-size: 14px;
       font-weight: 700;
       color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       transition:
         transform 0.15s ease,
         box-shadow 0.25s ease,
@@ -408,6 +411,13 @@
     .btn-pause:hover {
       box-shadow:
         0 0 18px rgba(167, 139, 250, 0.6),
+        0 10px 28px rgba(0,0,0,0.28);
+    }
+
+    .btn-warning:hover,
+    .results-action-btn:hover {
+      box-shadow:
+        0 0 18px rgba(251, 191, 36, 0.42),
         0 10px 28px rgba(0,0,0,0.28);
     }
 
@@ -745,6 +755,51 @@
         font-size: 11px;
         padding: 8px 10px;
       }
+    }
+
+    .results-actions {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+
+      margin-top: 20px;
+      margin-bottom: 12px;
+    }
+
+    .results-action-btn {
+      width: 100%;
+      min-height: 42px;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 14px;
+      text-align: center;
+      text-decoration: none;
+      color: #2a1300;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f59e0b, #fbbf24);
+      box-shadow:
+        0 6px 16px rgba(0,0,0,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      transition:
+        transform 0.15s ease,
+        filter 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .results-action-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+    }
+
+    .results-action-btn:active {
+      transform: translateY(0) scale(0.98);
     }
 
     @media (max-width: 1080px) and (orientation: portrait) {
@@ -1370,6 +1425,16 @@
             <div class="k">Сценарий</div>
             <div class="v" id="presetStat">galaxy</div>
           </div>
+        </div>
+
+        <div class="results-actions">
+          <button id="saveResultBtn" class="results-action-btn" type="button">
+            Записать результат
+          </button>
+
+          <a href="./results.html" class="results-action-btn results-link">
+            Общие результаты
+          </a>
         </div>
       </section>
     </aside>

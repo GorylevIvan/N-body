@@ -1,5 +1,6 @@
 import init, { NBodyEngine } from "./rust-engine/pkg/rust_engine.js";
 import * as THREE from "three";
+import { supabase } from "./supabaseClient.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -109,6 +110,7 @@ const cpuLoadValue = document.getElementById("cpuLoadValue");
 const startBtn = document.getElementById("startBtn");
 const pauseBtn = document.getElementById("pauseBtn");
 const resetBtn = document.getElementById("resetBtn");
+const saveResultBtn = document.getElementById("saveResultBtn");
 const fullscreenStartBtn = document.getElementById("fullscreenStartBtn");
 const fullscreenPauseBtn = document.getElementById("fullscreenPauseBtn");
 const fullscreenResetBtn = document.getElementById("fullscreenResetBtn");
@@ -208,6 +210,8 @@ let lastHeavyStatsUpdate = 0;
 let cachedTotalEnergy = 0;
 let cachedEnergyDrift = 0;
 let cachedKineticEnergy = 0;
+let cachedPhysicsLoad = 0;
+let cachedPhysicsMs = 0;
 
 let fpsCounter = 0;
 let fpsLastTime = performance.now();
@@ -1114,6 +1118,7 @@ function startPhysicsLoop() {
     const t1 = performance.now();
 
     const physicsMs = t1 - t0;
+    cachedPhysicsMs = physicsMs;
     physicsSamples.push(physicsMs);
     if (physicsSamples.length > 120) {
       physicsSamples.shift();
@@ -1174,6 +1179,7 @@ function startPhysicsLoop() {
       lastFpsGraphUpdate = nowFpsGraph;
 
       const cpuLoad = calculateCpuLoadEstimate(physicsMs);
+      cachedPhysicsLoad = cpuLoad;
       cpuLoadValue.textContent = `${cpuLoad.toFixed(0)}%`;
 
       if (fullscreenCpuValue) {
@@ -1262,6 +1268,7 @@ function setupListeners() {
   startBtn.addEventListener("click", startSimulation);
   pauseBtn.addEventListener("click", pauseSimulation);
   resetBtn.addEventListener("click", resetSystem);
+  saveResultBtn.addEventListener("click", saveBenchmarkResult);
   fullscreenStartBtn.addEventListener("click", startSimulation);
   fullscreenPauseBtn.addEventListener("click", pauseSimulation);
   fullscreenResetBtn.addEventListener("click", resetSystem);
@@ -1352,6 +1359,25 @@ function resetBenchmarkTracking() {
   lastHeavyStatsUpdate = performance.now();
 }
 
+function getAveragePhysicsMs() {
+  if (!physicsSamples.length) return 0;
+
+  const sum = physicsSamples.reduce((acc, value) => acc + value, 0);
+  return sum / physicsSamples.length;
+}
+
+function getDeviceLabel() {
+  const ua = navigator.userAgent;
+
+  if (/Android/i.test(ua)) return "Android";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+  if (/Windows/i.test(ua)) return "Windows";
+  if (/Macintosh|Mac OS/i.test(ua)) return "macOS";
+  if (/Linux/i.test(ua)) return "Linux";
+
+  return "Unknown";
+}
+
 function updateBenchmarkStats() {
   const solverLabel =
     solverSelect.value === "direct" ? "Прямой" : "Barnes–Hut";
@@ -1416,6 +1442,56 @@ function markPerformancePresetAsCustom() {
   if (performancePresetSelect) {
     performancePresetSelect.value = "custom";
   }
+}
+
+async function saveBenchmarkResult() {
+  if (!engine) return;
+
+  const s = getSettings();
+
+  const payload = {
+    device_text: getDeviceLabel(),
+    user_agent: navigator.userAgent,
+
+    solver: s.solver === "direct" ? "Прямой" : "Barnes–Hut",
+    preset: s.preset,
+
+    bodies: currentBodyCount,
+
+    fps: Number(currentFPS.toFixed(2)),
+    physics_ms: Number(cachedPhysicsMs.toFixed(4)),
+    avg_physics_ms: Number(getAveragePhysicsMs().toFixed(4)),
+    physics_load: Number(cachedPhysicsLoad.toFixed(2)),
+
+    kinetic_energy: Number(cachedKineticEnergy.toFixed(4)),
+    total_energy: Number(cachedTotalEnergy.toFixed(4)),
+    energy_drift: Number(cachedEnergyDrift.toFixed(4)),
+  };
+
+  const oldText = saveResultBtn.textContent;
+  saveResultBtn.disabled = true;
+  saveResultBtn.textContent = "Запись...";
+
+  const { error } = await supabase
+    .from("benchmark_results")
+    .insert(payload);
+
+  saveResultBtn.disabled = false;
+
+  if (error) {
+    console.error("Ошибка сохранения результата:", error);
+    saveResultBtn.textContent = "Ошибка";
+    setTimeout(() => {
+      saveResultBtn.textContent = oldText;
+    }, 1600);
+    return;
+  }
+
+  saveResultBtn.textContent = "Сохранено";
+
+  setTimeout(() => {
+    saveResultBtn.textContent = oldText;
+  }, 1600);
 }
 
 async function registerSW() {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "nbody-pwa-v5";
+const CACHE_NAME = "nbody-pwa-v10";
 const EXTERNAL_CACHE = "nbody-external-v2";
 
 const ASSETS = [
@@ -10,6 +10,9 @@ const ASSETS = [
   "./png/icon-192.png",
   "./png/icon-512.png",
   "./rust-engine/pkg/rust_engine.js",
+  "./results.html",
+  "./results.js",
+  "./supabaseClient.js",
   "./rust-engine/pkg/rust_engine_bg.wasm"
 ];
 
