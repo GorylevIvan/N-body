@@ -14,6 +14,7 @@ const WORLD_DEPTH = 1800;
 const DEFAULTS = {
   n: 400,
   preset: "galaxy",
+  performancePreset: "custom",
   solver: "barnes_hut",
   iterations: 1,
   g: 30,
@@ -228,7 +229,7 @@ function applyDefaultsToControls() {
   presetSelect.value = DEFAULTS.preset;
   solverSelect.value = DEFAULTS.solver;
   visualModeSelect.value = DEFAULTS.visualMode;
-  performancePresetSelect.value = "balanced";
+  performancePresetSelect.value = DEFAULTS.performancePreset;
   iterationsRange.value = DEFAULTS.iterations;
   gravityRange.value = DEFAULTS.g;
   dtRange.value = DEFAULTS.dt;
