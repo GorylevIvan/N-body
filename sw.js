@@ -1,5 +1,5 @@
-const CACHE_NAME = "nbody-pwa-v10";
-const EXTERNAL_CACHE = "nbody-external-v2";
+const CACHE_NAME = "nbody-pwa-v12";
+const EXTERNAL_CACHE = "nbody-external-v3";
 
 const ASSETS = [
   "./",

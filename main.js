@@ -8,7 +8,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 
 const MAX_BODIES = 50000;
 const WORLD_WIDTH = 1800;
-const WORLD_HEIGHT = 900;
+const WORLD_HEIGHT = 1200;
 const WORLD_DEPTH = 1800;
 
 const DEFAULTS = {
@@ -1450,12 +1450,38 @@ async function saveBenchmarkResult() {
 
   const s = getSettings();
 
+  const performancePresetLabels = {
+    custom: "Пользовательский",
+    light: "Лёгкий",
+    balanced: "Сбалансированный",
+    quality: "Качественный",
+    stress: "Стресс-тест",
+    "direct-test": "Тест прямого метода",
+  };
+
+  const scenarioLabels = {
+    galaxy: "Галактика",
+    collapse: "Коллапс",
+    explosion: "Взрыв",
+    "two-galaxies": "Две галактики",
+  };
+
+  const visualModeLabels = {
+    normal: "Обычный",
+    bright: "Яркий",
+    cinematic: "Кинематографичный",
+  };
+
   const payload = {
     device_text: getDeviceLabel(),
     user_agent: navigator.userAgent,
 
     solver: s.solver === "direct" ? "Прямой" : "Barnes–Hut",
-    preset: s.preset,
+    preset: scenarioLabels[s.preset] || s.preset,
+    performance_preset:
+      performancePresetLabels[performancePresetSelect.value] ||
+      performancePresetSelect.value ||
+      "Пользовательский",
 
     bodies: currentBodyCount,
 
@@ -1467,6 +1493,26 @@ async function saveBenchmarkResult() {
     kinetic_energy: Number(cachedKineticEnergy.toFixed(4)),
     total_energy: Number(cachedTotalEnergy.toFixed(4)),
     energy_drift: Number(cachedEnergyDrift.toFixed(4)),
+
+    settings_json: {
+      scenario: scenarioLabels[s.preset] || s.preset,
+      performancePreset:
+        performancePresetLabels[performancePresetSelect.value] ||
+        performancePresetSelect.value ||
+        "Пользовательский",
+      solver: s.solver === "direct" ? "Прямой" : "Barnes–Hut",
+
+      bodies: s.n,
+      iterations: s.iterations,
+      gravity: s.g,
+      timeStep: s.dt,
+      softening: s.softening,
+      trail: s.trail,
+      radiusScale: s.radiusScale,
+      glow: s.glow,
+      bloom: s.bloom,
+      visualMode: visualModeLabels[s.visualMode] || s.visualMode,
+    },
   };
 
   const oldText = saveResultBtn.textContent;
