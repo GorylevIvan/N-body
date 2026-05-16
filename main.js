@@ -71,6 +71,20 @@ const PERFORMANCE_PRESETS = {
     visualMode: "cinematic",
   },
 
+  high: {
+    n: 8000,
+    solver: "barnes_hut",
+    iterations: 1,
+    g: 26,
+    dt: 0.006,
+    softening: 14,
+    trail: 0.0,
+    radiusScale: 3.1,
+    glow: 1.25,
+    bloom: 1.45,
+    visualMode: "bright",
+  },
+
   stress: {
     n: 10000,
     solver: "barnes_hut",
@@ -107,6 +121,9 @@ const fpsCtx = fpsCanvas.getContext("2d");
 const cpuCanvas = document.getElementById("cpuCanvas");
 const cpuCtx = cpuCanvas.getContext("2d");
 const cpuLoadValue = document.getElementById("cpuLoadValue");
+const energyCanvas = document.getElementById("energyCanvas");
+const energyCtx = energyCanvas.getContext("2d");
+const energyDriftValue = document.getElementById("energyDriftValue");
 
 const startBtn = document.getElementById("startBtn");
 const pauseBtn = document.getElementById("pauseBtn");
@@ -223,6 +240,7 @@ let lastFpsGraphUpdate = 0;
 const fpsHistory = [];
 const TARGET_FRAME_MS = 1000 / 60;
 const cpuHistory = [];
+const energyDriftHistory = [];
 
 function applyDefaultsToControls() {
   bodiesInput.value = DEFAULTS.n;
@@ -1103,6 +1121,111 @@ function drawCpuGraph() {
   cpuCtx.fill();
 }
 
+function drawEnergyDriftGraph() {
+  const w = energyCanvas.width;
+  const h = energyCanvas.height;
+
+  energyCtx.clearRect(0, 0, w, h);
+
+  const leftPad = 34;
+  const rightPad = 10;
+  const topPad = 8;
+  const bottomPad = 10;
+  const chartW = w - leftPad - rightPad;
+  const chartH = h - topPad - bottomPad;
+
+  const bg = energyCtx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, "rgba(196, 181, 253, 0.05)");
+  bg.addColorStop(0.55, "rgba(167, 139, 250, 0.03)");
+  bg.addColorStop(1, "rgba(10, 8, 30, 0.0)");
+  energyCtx.fillStyle = bg;
+  energyCtx.fillRect(0, 0, w, h);
+
+  const maxValue = Math.max(...energyDriftHistory, 1);
+
+  let labelStep = 1;
+
+  if (maxValue > 5 && maxValue <= 20) {
+    labelStep = 5;
+  } else if (maxValue > 20 && maxValue <= 50) {
+    labelStep = 10;
+  } else if (maxValue > 50) {
+    labelStep = 25;
+  }
+
+  const axisMax = Math.max(1, Math.ceil(maxValue / labelStep) * labelStep);
+
+  const labelValues = [];
+  for (let v = 0; v <= axisMax; v += labelStep) {
+    labelValues.push(v);
+  }
+
+  energyCtx.strokeStyle = "rgba(255,255,255,0.06)";
+  energyCtx.lineWidth = 1;
+
+  labelValues.forEach((val) => {
+    const y = topPad + chartH - (val / axisMax) * chartH;
+    energyCtx.beginPath();
+    energyCtx.moveTo(leftPad, y);
+    energyCtx.lineTo(w - rightPad, y);
+    energyCtx.stroke();
+  });
+
+  energyCtx.fillStyle = "rgba(255,255,255,0.40)";
+  energyCtx.font = "10px Inter, system-ui, sans-serif";
+  energyCtx.textBaseline = "middle";
+
+  labelValues.forEach((val) => {
+    const y = topPad + chartH - (val / axisMax) * chartH;
+    energyCtx.fillText(`${val}`, 6, y);
+  });
+
+  if (energyDriftHistory.length < 2) return;
+
+  const points = energyDriftHistory.map((drift, i) => {
+    const x = leftPad + (i / (energyDriftHistory.length - 1)) * chartW;
+    const y = topPad + chartH - (drift / axisMax) * chartH;
+    return { x, y };
+  });
+
+  const areaGradient = energyCtx.createLinearGradient(0, topPad, 0, h);
+  areaGradient.addColorStop(0, "rgba(196, 181, 253, 0.22)");
+  areaGradient.addColorStop(0.6, "rgba(139, 92, 246, 0.12)");
+  areaGradient.addColorStop(1, "rgba(139, 92, 246, 0.01)");
+
+  energyCtx.beginPath();
+  energyCtx.moveTo(points[0].x, topPad + chartH);
+  for (const p of points) energyCtx.lineTo(p.x, p.y);
+  energyCtx.lineTo(points[points.length - 1].x, topPad + chartH);
+  energyCtx.closePath();
+  energyCtx.fillStyle = areaGradient;
+  energyCtx.fill();
+
+  energyCtx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (i === 0) energyCtx.moveTo(p.x, p.y);
+    else energyCtx.lineTo(p.x, p.y);
+  }
+
+  const lineGradient = energyCtx.createLinearGradient(leftPad, 0, w - rightPad, 0);
+  lineGradient.addColorStop(0, "#ddd6fe");
+  lineGradient.addColorStop(0.55, "#a78bfa");
+  lineGradient.addColorStop(1, "#8b5cf6");
+
+  energyCtx.strokeStyle = lineGradient;
+  energyCtx.lineWidth = 2.5;
+  energyCtx.lineCap = "round";
+  energyCtx.lineJoin = "round";
+  energyCtx.stroke();
+
+  const last = points[points.length - 1];
+  energyCtx.beginPath();
+  energyCtx.fillStyle = "#ffffff";
+  energyCtx.arc(last.x, last.y, 2.5, 0, Math.PI * 2);
+  energyCtx.fill();
+}
+
 function startPhysicsLoop() {
   if (physicsRafId !== null) return;
 
@@ -1143,7 +1266,9 @@ function startPhysicsLoop() {
       lastLightStatsUpdate = nowStats;
     }
 
-    if (nowStats - lastHeavyStatsUpdate >= 5000) {
+    const heavyStatsInterval = getHeavyStatsUpdateInterval(currentBodyCount);
+
+    if (nowStats - lastHeavyStatsUpdate >= heavyStatsInterval) {
       cachedTotalEnergy = engine.total_energy();
 
       if (baselineTotalEnergy !== null && baselineTotalEnergy !== 0) {
@@ -1152,6 +1277,17 @@ function startPhysicsLoop() {
       } else {
         cachedEnergyDrift = 0;
       }
+
+      if (energyDriftValue) {
+        energyDriftValue.textContent = `${cachedEnergyDrift.toFixed(2)}%`;
+      }
+
+      energyDriftHistory.push(cachedEnergyDrift);
+      if (energyDriftHistory.length > 120) {
+        energyDriftHistory.shift();
+      }
+
+      drawEnergyDriftGraph();
 
       updateBenchmarkStats();
       lastHeavyStatsUpdate = nowStats;
@@ -1236,8 +1372,6 @@ function setupListeners() {
   });
 
   solverSelect.addEventListener("change", () => {
-    markPerformancePresetAsCustom();
-
     solverWarningDismissed = false;
     updateSolverWarning();
     applySolverMode();
@@ -1339,10 +1473,38 @@ function resizeToDisplaySize() {
     cpuCanvas.height = cpuHeight;
     drawCpuGraph();
   }
+
+  const energyRect = energyCanvas.getBoundingClientRect();
+  const energyWidth = Math.max(160, Math.floor(energyRect.width));
+  const energyHeight = Math.max(70, Math.floor(energyRect.height));
+
+  if (energyCanvas.width !== energyWidth || energyCanvas.height !== energyHeight) {
+    energyCanvas.width = energyWidth;
+    energyCanvas.height = energyHeight;
+    drawEnergyDriftGraph();
+  }
+}
+
+function getHeavyStatsUpdateInterval(bodyCount) {
+  if (bodyCount <= 500) return 700;
+  if (bodyCount <= 1000) return 1200;
+  if (bodyCount <= 2500) return 2200;
+  if (bodyCount <= 5000) return 3500;
+  return 5000;
 }
 
 function resetBenchmarkTracking() {
   physicsSamples = [];
+
+  energyDriftHistory.length = 0;
+
+  if (energyDriftValue) {
+    energyDriftValue.textContent = "0%";
+  }
+
+  if (energyCanvas) {
+    drawEnergyDriftGraph();
+  }
 
   if (engine) {
     cachedKineticEnergy = engine.kinetic_energy();
@@ -1455,6 +1617,7 @@ async function saveBenchmarkResult() {
     light: "Лёгкий",
     balanced: "Сбалансированный",
     quality: "Качественный",
+    high: "Высокая нагрузка",
     stress: "Стресс-тест",
     "direct-test": "Тест прямого метода",
   };
@@ -1576,6 +1739,7 @@ async function boot() {
     createEngine();
     drawFpsGraph();
     drawCpuGraph();
+    drawEnergyDriftGraph();
     setupListeners();
     startRenderLoop();
 

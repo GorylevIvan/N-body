@@ -132,9 +132,9 @@ async function loadResults() {
       <td>${formatNumber(row.physics_ms, 3)}</td>
       <td>${formatNumber(row.avg_physics_ms, 3)}</td>
       <td>${formatNumber(row.physics_load, 1)}%</td>
-      <td>${formatNumber(row.kinetic_energy, 2)}</td>
-      <td>${formatNumber(row.total_energy, 2)}</td>
       <td>${formatNumber(row.energy_drift, 2)}%</td>
+      <td>${formatNumber(row.kinetic_energy, 2)}</td>
+      <td>${formatNumber(row.total_energy, 2)}</td>  
       <td>
         <button class="details-btn" type="button" data-index="${index}">
           Подробнее
