@@ -266,6 +266,36 @@
       text-overflow: ellipsis;
     }
 
+    .results-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.025);
+    }
+
+    .results-toolbar label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .results-toolbar select {
+      min-width: 260px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)),
+        rgba(13, 10, 45, 0.88);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      outline: none;
+    }
+
     @media (max-width: 720px) {
       .page {
         padding: 14px;
@@ -292,6 +322,21 @@
 
     <section class="panel">
       <div id="status" class="status">Загрузка результатов...</div>
+
+      <div class="results-toolbar">
+        <label for="sortSelect">Сортировка</label>
+
+        <select id="sortSelect">
+          <option value="created_at_desc">Сначала новые</option>
+          <option value="created_at_asc">Сначала старые</option>
+          <option value="fps_desc">FPS: по убыванию</option>
+          <option value="fps_asc">FPS: по возрастанию</option>
+          <option value="physics_load_desc">Нагрузка физики: по убыванию</option>
+          <option value="physics_load_asc">Нагрузка физики: по возрастанию</option>
+          <option value="energy_drift_desc">Отклонение энергии: по убыванию</option>
+          <option value="energy_drift_asc">Отклонение энергии: по возрастанию</option>
+        </select>
+      </div>
 
       <div class="table-wrap">
         <table id="resultsTable" style="display:none;">

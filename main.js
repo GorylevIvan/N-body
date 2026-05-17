@@ -135,6 +135,7 @@ const fullscreenResetBtn = document.getElementById("fullscreenResetBtn");
 
 const fullscreenFpsValue = document.getElementById("fullscreenFpsValue");
 const fullscreenCpuValue = document.getElementById("fullscreenCpuValue");
+const fullscreenEnergyValue = document.getElementById("fullscreenEnergyValue");
 const defaultsBtn = document.getElementById("defaultsBtn");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
 
@@ -259,6 +260,7 @@ function applyDefaultsToControls() {
   bloomRange.value = DEFAULTS.bloom;
 
   syncLabels();
+  syncCustomSelects();
   updateSolverWarning();
 }
 
@@ -273,6 +275,27 @@ function syncLabels() {
   glowValue.textContent = Number(glowRange.value).toFixed(2);
   bloomValue.textContent = Number(bloomRange.value).toFixed(2);
   presetStat.textContent = presetSelect.value;
+}
+
+function syncCustomSelects() {
+  document.querySelectorAll(".custom-select").forEach((customSelect) => {
+    const selectId = customSelect.dataset.selectId;
+    const realSelect = document.getElementById(selectId);
+    const button = customSelect.querySelector(".custom-select-btn");
+    const options = customSelect.querySelectorAll(".custom-select-option");
+
+    if (!realSelect || !button) return;
+
+    const selectedOption = realSelect.options[realSelect.selectedIndex];
+    button.textContent = selectedOption ? selectedOption.textContent : "";
+
+    options.forEach((option) => {
+      option.classList.toggle(
+        "active",
+        option.dataset.value === realSelect.value
+      );
+    });
+  });
 }
 
 function updateSolverWarning() {
@@ -1282,6 +1305,10 @@ function startPhysicsLoop() {
         energyDriftValue.textContent = `${cachedEnergyDrift.toFixed(2)}%`;
       }
 
+      if (fullscreenEnergyValue) {
+        fullscreenEnergyValue.textContent = `${cachedEnergyDrift.toFixed(2)}%`;
+      }
+
       energyDriftHistory.push(cachedEnergyDrift);
       if (energyDriftHistory.length > 120) {
         energyDriftHistory.shift();
@@ -1502,6 +1529,10 @@ function resetBenchmarkTracking() {
     energyDriftValue.textContent = "0%";
   }
 
+  if (fullscreenEnergyValue) {
+    fullscreenEnergyValue.textContent = "0%";
+  }
+
   if (energyCanvas) {
     drawEnergyDriftGraph();
   }
@@ -1596,6 +1627,7 @@ function applyPerformancePreset(presetName) {
   solverWarningDismissed = false;
 
   syncLabels();
+  syncCustomSelects();
   updateSolverWarning();
 
   createEngine();
@@ -1605,6 +1637,83 @@ function markPerformancePresetAsCustom() {
   if (performancePresetSelect) {
     performancePresetSelect.value = "custom";
   }
+}
+
+function setupCustomSelects() {
+  const customSelects = document.querySelectorAll(".custom-select");
+
+  customSelects.forEach((customSelect) => {
+    const selectId = customSelect.dataset.selectId;
+    const realSelect = document.getElementById(selectId);
+    const button = customSelect.querySelector(".custom-select-btn");
+    const options = customSelect.querySelectorAll(".custom-select-option");
+
+    if (!realSelect || !button || options.length === 0) return;
+
+    function syncFromRealSelect() {
+      const selectedOption = realSelect.options[realSelect.selectedIndex];
+      const selectedText = selectedOption ? selectedOption.textContent : "";
+
+      button.textContent = selectedText;
+
+      options.forEach((option) => {
+        option.classList.toggle(
+          "active",
+          option.dataset.value === realSelect.value
+        );
+      });
+    }
+
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+
+      customSelects.forEach((item) => {
+        if (item !== customSelect) {
+          item.classList.remove("open");
+        }
+      });
+
+      customSelect.classList.toggle("open");
+    });
+
+    options.forEach((option) => {
+      option.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        const newValue = option.dataset.value;
+        if (realSelect.value !== newValue) {
+          realSelect.value = newValue;
+
+          realSelect.dispatchEvent(
+            new Event("change", {
+              bubbles: true,
+            })
+          );
+        }
+
+        syncFromRealSelect();
+        customSelect.classList.remove("open");
+      });
+    });
+
+    realSelect.addEventListener("change", syncFromRealSelect);
+
+    syncFromRealSelect();
+  });
+
+  document.addEventListener("click", () => {
+    customSelects.forEach((customSelect) => {
+      customSelect.classList.remove("open");
+    });
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      customSelects.forEach((customSelect) => {
+        customSelect.classList.remove("open");
+      });
+    }
+  });
 }
 
 async function saveBenchmarkResult() {
@@ -1740,6 +1849,7 @@ async function boot() {
     drawFpsGraph();
     drawCpuGraph();
     drawEnergyDriftGraph();
+    setupCustomSelects()
     setupListeners();
     startRenderLoop();
 

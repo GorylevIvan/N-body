@@ -7,6 +7,7 @@ const bodyEl = document.getElementById("resultsBody");
 const settingsModal = document.getElementById("settingsModal");
 const settingsModalBody = document.getElementById("settingsModalBody");
 const closeSettingsModal = document.getElementById("closeSettingsModal");
+const sortSelect = document.getElementById("sortSelect");
 
 function formatDate(value) {
   if (!value) return "-";
@@ -92,13 +93,30 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+function getSortConfig() {
+  const value = sortSelect?.value || "created_at_desc";
+
+  const [field, direction] = value.endsWith("_asc")
+    ? [value.replace("_asc", ""), "asc"]
+    : [value.replace("_desc", ""), "desc"];
+
+  return {
+    field,
+    ascending: direction === "asc",
+  };
+}
+
 async function loadResults() {
+  statusEl.style.display = "block";
+  tableEl.style.display = "none";
   statusEl.textContent = "Загрузка результатов...";
+
+  const sort = getSortConfig();
 
   const { data, error } = await supabase
     .from("benchmark_results")
     .select("*")
-    .order("created_at", { ascending: false })
+    .order(sort.field, { ascending: sort.ascending })
     .limit(200);
 
   if (error) {
@@ -117,8 +135,6 @@ async function loadResults() {
   data.forEach((row, index) => {
     const tr = document.createElement("tr");
 
-    const performancePreset = row.performance_preset || "-";
-
     tr.innerHTML = `
       <td>${formatDate(row.created_at)}</td>
       <td class="device" title="${escapeHtml(row.user_agent || "")}">
@@ -126,7 +142,7 @@ async function loadResults() {
       </td>
       <td>${escapeHtml(row.solver || "-")}</td>
       <td>${escapeHtml(row.preset || "-")}</td>
-      <td>${escapeHtml(performancePreset)}</td>
+      <td>${escapeHtml(row.performance_preset || "-")}</td>
       <td>${row.bodies ?? "-"}</td>
       <td>${formatNumber(row.fps, 0)}</td>
       <td>${formatNumber(row.physics_ms, 3)}</td>
@@ -134,7 +150,7 @@ async function loadResults() {
       <td>${formatNumber(row.physics_load, 1)}%</td>
       <td>${formatNumber(row.energy_drift, 2)}%</td>
       <td>${formatNumber(row.kinetic_energy, 2)}</td>
-      <td>${formatNumber(row.total_energy, 2)}</td>  
+      <td>${formatNumber(row.total_energy, 2)}</td>
       <td>
         <button class="details-btn" type="button" data-index="${index}">
           Подробнее
@@ -155,5 +171,7 @@ async function loadResults() {
   statusEl.style.display = "none";
   tableEl.style.display = "table";
 }
+
+sortSelect?.addEventListener("change", loadResults);
 
 loadResults();

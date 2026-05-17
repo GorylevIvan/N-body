@@ -238,7 +238,7 @@
 
     .group {
       margin-bottom: 18px;
-      padding: 14px;
+      padding: 20px;
       background:
         linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
         rgba(10, 7, 37, 0.52);
@@ -251,21 +251,22 @@
 
     .group h3 {
       margin: 0 0 12px;
-      font-size: 15px;
+      font-size: 18px;
       font-weight: 700;
       color: #eef2ff;
     }
 
     .field {
       margin-bottom: 12px;
+      overflow: visible;
     }
 
     label {
       display: block;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       color: var(--muted);
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 700;
     }
 
     input[type="number"] {
@@ -1240,6 +1241,166 @@
       }
     }
 
+    .real-select-hidden {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 1px;
+      height: 1px;
+    }
+
+    .custom-select {
+      position: relative;
+      width: 100%;
+      z-index: 20;
+      margin-bottom: 4px;
+    }
+
+    .custom-select.open {
+      z-index: 500;
+    }
+
+    .custom-select-btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 42px 10px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)),
+        rgba(13, 10, 45, 0.72);
+
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.03),
+        0 6px 18px rgba(0,0,0,0.14);
+
+      transition:
+        border-color 0.2s ease,
+        filter 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .custom-select-btn:hover {
+      filter: brightness(1.06);
+      border-color: rgba(255,255,255,0.16);
+    }
+
+    .custom-select-btn:focus {
+      outline: none;
+      border-color: rgba(103,232,249,0.34);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.04),
+        0 0 0 3px rgba(103,232,249,0.10),
+        0 8px 24px rgba(0,0,0,0.18);
+    }
+
+    .custom-select-btn::after {
+      content: "";
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid rgba(245,243,255,0.85);
+      border-bottom: 2px solid rgba(245,243,255,0.85);
+      transform: translateY(-65%) rotate(45deg);
+      transition: transform 0.18s ease;
+    }
+
+    .custom-select.open .custom-select-btn::after {
+      transform: translateY(-35%) rotate(225deg);
+    }
+
+    .custom-select-menu {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 8px);
+      z-index: 501;
+
+      display: none;
+      padding: 8px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.12);
+
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025)),
+        rgba(22, 15, 70, 0.96);
+
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+
+      box-shadow:
+        0 18px 48px rgba(0,0,0,0.34),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+
+      max-height: 260px;
+      overflow-y: auto;
+      overflow-x: hidden;
+
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .custom-select-menu::-webkit-scrollbar {
+      display: none;
+    }
+
+    .custom-select.open .custom-select-menu {
+      display: grid;
+      gap: 4px;
+    }
+
+    .custom-select-option {
+      width: 100%;
+      min-height: 38px;
+      padding: 9px 11px;
+      border: none;
+      border-radius: 12px;
+      position: relative;
+      z-index: 2;
+
+      color: rgba(245,243,255,0.88);
+      background: transparent;
+
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: left;
+
+      cursor: pointer;
+
+      transition:
+        background 0.15s ease,
+        color 0.15s ease,
+        transform 0.15s ease;
+    }
+
+    .custom-select-option:hover {
+      color: #ffffff;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .custom-select-option.active {
+      color: #ffffff;
+      background:
+        linear-gradient(135deg, rgba(103,232,249,0.16), rgba(167,139,250,0.18));
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.06),
+        0 6px 18px rgba(0,0,0,0.12);
+    }
+
+    .custom-select-option:active {
+      transform: scale(0.985);
+    }
+
     @media (max-width: 720px) and (orientation: portrait) {
       .controls-row {
         grid-template-columns: 1fr;
@@ -1290,34 +1451,73 @@
 
             <div class="field">
               <label for="presetSelect">Пресет симуляции</label>
+              <div class="custom-select" data-select-id="presetSelect">
+                <button class="custom-select-btn" type="button">
+                  Галактика
+                </button>
 
-              <select id="presetSelect">
-                <option value="galaxy" selected>Галактика</option>
-                <option value="collapse">Коллапс</option>
-                <option value="explosion">Взрыв</option>
-                <option value="two-galaxies">Две галактики</option>
-              </select>
+                <div class="custom-select-menu">
+                  <button class="custom-select-option active" type="button" data-value="galaxy">Галактика</button>
+                  <button class="custom-select-option" type="button" data-value="collapse">Коллапс</button>
+                  <button class="custom-select-option" type="button" data-value="explosion">Взрыв</button>
+                  <button class="custom-select-option" type="button" data-value="two-galaxies">Две галактики</button>
+                </div>
+
+                <select id="presetSelect" class="real-select-hidden">
+                  <option value="galaxy" selected>Галактика</option>
+                  <option value="collapse">Коллапс</option>
+                  <option value="explosion">Взрыв</option>
+                  <option value="two-galaxies">Две галактики</option>
+                </select>
+              </div>
             </div>
 
-            <div class="field">
+            <div class="field">  
               <label for="solverSelect">Алгоритм расчёта</label>
-              <select id="solverSelect">
-                <option value="barnes_hut">Barnes–Hut</option>
-                <option value="direct">Прямой</option>
-              </select>
+              <div class="custom-select" data-select-id="solverSelect">
+                <button class="custom-select-btn" type="button">
+                  Barnes–Hut
+                </button>
+
+                <div class="custom-select-menu">
+                  <button class="custom-select-option active" type="button" data-value="barnes_hut">Barnes–Hut</button>
+                  <button class="custom-select-option" type="button" data-value="direct">Прямой</button>
+                </div>
+
+                <select id="solverSelect" class="real-select-hidden">
+                  <option value="barnes_hut" selected>Barnes–Hut</option>
+                  <option value="direct">Прямой</option>
+                </select>
+              </div>
             </div>
 
             <div class="field">
               <label for="performancePresetSelect">Пресет нагрузки</label>
-              <select id="performancePresetSelect">
-                <option value="custom" selected>Пользовательский</option>
-                <option value="light">Лёгкий</option>
-                <option value="balanced">Сбалансированный</option>
-                <option value="quality">Качественный</option>
-                <option value="high">Высокая нагрузка</option>
-                <option value="stress">Стресс-тест</option>
-                <option value="direct-test">Тест прямого метода</option>
-              </select>
+              <div class="custom-select" data-select-id="performancePresetSelect">
+                <button class="custom-select-btn" type="button">
+                  Пользовательский
+                </button>
+
+                <div class="custom-select-menu">
+                  <button class="custom-select-option active" type="button" data-value="custom">Пользовательский</button>
+                  <button class="custom-select-option" type="button" data-value="light">Лёгкий</button>
+                  <button class="custom-select-option" type="button" data-value="balanced">Сбалансированный</button>
+                  <button class="custom-select-option" type="button" data-value="quality">Качественный</button>
+                  <button class="custom-select-option" type="button" data-value="high">Высокая нагрузка</button>
+                  <button class="custom-select-option" type="button" data-value="stress">Стресс-тест</button>
+                  <button class="custom-select-option" type="button" data-value="direct-test">Тест прямого метода</button>
+                </div>
+
+                <select id="performancePresetSelect" class="real-select-hidden">
+                  <option value="custom" selected>Пользовательский</option>
+                  <option value="light">Лёгкий</option>
+                  <option value="balanced">Сбалансированный</option>
+                  <option value="quality">Качественный</option>
+                  <option value="high">Высокая нагрузка</option>
+                  <option value="stress">Стресс-тест</option>
+                  <option value="direct-test">Тест прямого метода</option>
+                </select>
+              </div>
             </div>
 
             <div id="solverWarning" class="solver-warning" style="display:none;">
@@ -1374,11 +1574,23 @@
 
             <div class="field">
               <label for="visualModeSelect">Режим отображения</label>
-              <select id="visualModeSelect">
-                <option value="normal">Обычный</option>
-                <option value="bright">Яркий</option>
-                <option value="cinematic">Кинематографичный</option>
-              </select>
+              <div class="custom-select" data-select-id="visualModeSelect">
+                <button class="custom-select-btn" type="button">
+                  Яркий
+                </button>
+
+                <div class="custom-select-menu">
+                  <button class="custom-select-option" type="button" data-value="normal">Обычный</button>
+                  <button class="custom-select-option active" type="button" data-value="bright">Яркий</button>
+                  <button class="custom-select-option" type="button" data-value="cinematic">Кинематографичный</button>
+                </div>
+
+                <select id="visualModeSelect" class="real-select-hidden">
+                  <option value="normal">Обычный</option>
+                  <option value="bright" selected>Яркий</option>
+                  <option value="cinematic">Кинематографичный</option>
+                </select>
+              </div>
             </div>
 
             <div class="field">
@@ -1422,6 +1634,7 @@
             <div class="fullscreen-metrics">
               <div><span>FPS:</span> <strong id="fullscreenFpsValue">0</strong></div>
               <div><span>Нагрузка физики:</span> <strong id="fullscreenCpuValue">0%</strong></div>
+              <div><span>Отклонение энергии:</span> <strong id="fullscreenEnergyValue">0%</strong></div>
             </div>
 
             <div class="fullscreen-controls">
