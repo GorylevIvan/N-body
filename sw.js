@@ -1,4 +1,4 @@
-const CACHE_NAME = "nbody-pwa-v15";
+const CACHE_NAME = "nbody-pwa-v16";
 const EXTERNAL_CACHE = "nbody-external-v3";
 
 const ASSETS = [
