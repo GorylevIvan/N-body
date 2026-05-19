@@ -182,6 +182,8 @@ const solverStat = document.getElementById("solverStat");
 const avgPhysicsStat = document.getElementById("avgPhysicsStat");
 const energyDriftStat = document.getElementById("energyDriftStat");
 
+const elapsedTimeStat = document.getElementById("elapsedTimeStat");
+
 let engine = null;
 let wasmExports = null;
 
@@ -221,6 +223,10 @@ let wasmMasses = null;
 let wasmSpeeds = null;
 
 let currentBodyCount = DEFAULTS.n;
+
+let simulationStartTime = null;
+let elapsedBeforePause = 0;
+let currentElapsedSeconds = 0;
 
 let colorUpdateCounter = 0;
 let statsUpdateCounter = 0;
@@ -788,15 +794,23 @@ function refreshPresetImmediately() {
 }
 
 function startSimulation() {
-  if (!engine) createEngine();
   if (running) return;
 
   running = true;
-  statusStat.textContent = "запущено";
+  simulationStartTime = performance.now();
+
+  statusStat.textContent = "работает";
+
+  updateElapsedTimer();
   startPhysicsLoop();
 }
 
 function pauseSimulation() {
+
+  updateElapsedTimer();
+  elapsedBeforePause = currentElapsedSeconds;
+  simulationStartTime = null;
+
   running = false;
   statusStat.textContent = "пауза";
 
@@ -807,6 +821,10 @@ function pauseSimulation() {
 }
 
 function resetSystem() {
+  simulationStartTime = null;
+  elapsedBeforePause = 0;
+  currentElapsedSeconds = 0;
+  updateElapsedTimer();
   pauseSimulation();
   createEngine();
 }
@@ -1249,6 +1267,30 @@ function drawEnergyDriftGraph() {
   energyCtx.fill();
 }
 
+function formatElapsedTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0.0 c";
+
+  if (seconds < 60) {
+    return `${seconds.toFixed(1)} c`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const restSeconds = seconds % 60;
+
+  return `${minutes} мин ${restSeconds.toFixed(1)} c`;
+}
+
+function updateElapsedTimer() {
+  if (running && simulationStartTime !== null) {
+    currentElapsedSeconds =
+      elapsedBeforePause + (performance.now() - simulationStartTime) / 1000;
+  }
+
+  if (elapsedTimeStat) {
+    elapsedTimeStat.textContent = formatElapsedTime(currentElapsedSeconds);
+  }
+}
+
 function startPhysicsLoop() {
   if (physicsRafId !== null) return;
 
@@ -1286,6 +1328,7 @@ function startPhysicsLoop() {
       physicsStat.textContent = `${physicsMs.toFixed(3)} ms`;
       cachedKineticEnergy = engine.kinetic_energy();
       updateBenchmarkStats();
+      updateElapsedTimer();
       lastLightStatsUpdate = nowStats;
     }
 
@@ -1572,6 +1615,126 @@ function getDeviceLabel() {
   return "Unknown";
 }
 
+function getBrowserName() {
+  const ua = navigator.userAgent;
+
+  if (/Edg/i.test(ua)) return "Microsoft Edge";
+  if (/OPR|Opera/i.test(ua)) return "Opera";
+  if (/Firefox/i.test(ua)) return "Firefox";
+  if (/Chrome/i.test(ua)) return "Chrome";
+  if (/Safari/i.test(ua)) return "Safari";
+
+  return "Неизвестный браузер";
+}
+
+function getOsName() {
+  const ua = navigator.userAgent;
+
+  if (/Windows/i.test(ua)) return "Windows";
+  if (/Android/i.test(ua)) return "Android";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+  if (/Macintosh|Mac OS/i.test(ua)) return "macOS";
+  if (/Linux/i.test(ua)) return "Linux";
+
+  return "Неизвестная ОС";
+}
+
+function getPhoneModelFromUserAgent() {
+  const ua = navigator.userAgent;
+
+  const androidMatch = ua.match(/Android\s[\d.]+;\s([^;)]+)\)/i);
+
+  if (androidMatch && androidMatch[1]) {
+    return androidMatch[1]
+      .replace(/Build\/.*/i, "")
+      .replace(/wv/i, "")
+      .trim();
+  }
+
+  if (/iPhone/i.test(ua)) return "iPhone";
+  if (/iPad/i.test(ua)) return "iPad";
+
+  return null;
+}
+
+function getGpuInfo() {
+  try {
+    const canvas = document.createElement("canvas");
+
+    const gl =
+      canvas.getContext("webgl") ||
+      canvas.getContext("experimental-webgl");
+
+    if (!gl) return "Не удалось определить";
+
+    const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+
+    if (debugInfo) {
+      return (
+        gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ||
+        "Не удалось определить"
+      );
+    }
+
+    return gl.getParameter(gl.RENDERER) || "Не удалось определить";
+  } catch (err) {
+    return "Не удалось определить";
+  }
+}
+
+function getCpuInfoText() {
+  const threads = navigator.hardwareConcurrency;
+
+  if (threads) {
+    return `${threads} логических потоков`;
+  }
+
+  return "Не удалось определить";
+}
+
+function getRamText() {
+  const memory = navigator.deviceMemory;
+
+  if (memory) {
+    return `${memory} ГБ`;
+  }
+
+  return "Не удалось определить";
+}
+
+function getDeviceShortName() {
+  const os = getOsName();
+  const phoneModel = getPhoneModelFromUserAgent();
+
+  if (phoneModel) return phoneModel;
+
+  if (os === "Windows") return "Windows ПК";
+  if (os === "macOS") return "Mac";
+  if (os === "Linux") return "Linux ПК";
+  if (os === "Android") return "Android-устройство";
+  if (os === "iOS") return "iOS-устройство";
+
+  return "Неизвестное устройство";
+}
+
+function getDeviceInfoForBenchmark() {
+  const screenText = `${screen.width}×${screen.height}`;
+  const viewportText = `${window.innerWidth}×${window.innerHeight}`;
+
+  return {
+    deviceName: getDeviceShortName(),
+    os: getOsName(),
+    browser: getBrowserName(),
+    cpu: getCpuInfoText(),
+    ram: getRamText(),
+    gpu: getGpuInfo(),
+    screen: screenText,
+    viewport: viewportText,
+    dpr: window.devicePixelRatio || 1,
+    userAgent: navigator.userAgent,
+  };
+}
+
 function updateBenchmarkStats() {
   const solverLabel =
     solverSelect.value === "direct" ? "Прямой" : "Barnes–Hut";
@@ -1744,7 +1907,12 @@ async function saveBenchmarkResult() {
     cinematic: "Кинематографичный",
   };
 
+  const deviceInfo = getDeviceInfoForBenchmark();
+
   const payload = {
+      
+    device_text: deviceInfo.deviceName,
+    device_info_json: deviceInfo,
     device_text: getDeviceLabel(),
     user_agent: navigator.userAgent,
 
@@ -1758,6 +1926,7 @@ async function saveBenchmarkResult() {
     bodies: currentBodyCount,
 
     fps: Number(currentFPS.toFixed(2)),
+    elapsed_seconds: Number(currentElapsedSeconds.toFixed(2)),
     physics_ms: Number(cachedPhysicsMs.toFixed(4)),
     avg_physics_ms: Number(getAveragePhysicsMs().toFixed(4)),
     physics_load: Number(cachedPhysicsLoad.toFixed(2)),

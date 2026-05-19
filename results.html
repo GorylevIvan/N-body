@@ -76,6 +76,10 @@
         box-shadow 0.25s ease,
         background 0.25s ease,
         filter 0.2s ease;
+
+      font-family: Inter, system-ui, sans-serif;
+      font-weight: 700;
+      letter-spacing: 0;
     }
 
     .back-link:hover {
@@ -109,7 +113,7 @@
         0 8px 26px rgba(17,24,39,0.22);
     }
 
-        .details-btn {
+    .details-btn {
       border: none;
       border-radius: 12px;
       padding: 8px 10px;
@@ -125,6 +129,9 @@
         transform 0.15s ease,
         filter 0.2s ease,
         box-shadow 0.2s ease;
+      font-family: Inter, system-ui, sans-serif;
+      font-weight: 700;
+      letter-spacing: 0;
     }
 
     .details-btn:hover {
@@ -201,9 +208,11 @@
     }
 
     .settings-detail-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 20px;
+      display: grid;
+      grid-template-columns: minmax(120px, 0.75fr) minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+
       padding: 11px 12px;
       border-radius: 14px;
       background:
@@ -218,8 +227,13 @@
     }
 
     .settings-detail-row span:last-child {
+      min-width: 0;
       font-weight: 800;
       text-align: right;
+
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .table-wrap {
@@ -266,6 +280,22 @@
       text-overflow: ellipsis;
     }
 
+    .settings-modal {
+      overflow: auto;
+    }
+
+    .settings-modal-card {
+      width: min(560px, calc(100vw - 28px));
+      max-height: calc(100dvh - 28px);
+      overflow: hidden;
+    }
+
+    .settings-modal-body {
+      max-height: calc(100dvh - 110px);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
     .results-toolbar {
       display: flex;
       align-items: center;
@@ -296,6 +326,111 @@
       outline: none;
     }
 
+    .device-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .device-name {
+      max-width: 170px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .device-details-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 7px 9px;
+      cursor: pointer;
+      color: #2a1300;
+      font-size: 12px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f59e0b, #fbbf24);
+      box-shadow:
+        0 5px 14px rgba(0,0,0,0.16),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+      transition:
+        transform 0.15s ease,
+        filter 0.2s ease,
+        box-shadow 0.2s ease;
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Inter, system-ui, sans-serif;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .device-details-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+      box-shadow:
+        0 0 16px rgba(251,191,36,0.38),
+        0 8px 22px rgba(0,0,0,0.22);
+    }
+
+    .device-details-btn:active {
+      transform: translateY(0) scale(0.98);
+    }
+
+    .toolbar-btn {
+      min-height: 40px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 14px;
+      color: #2a1300;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      background: linear-gradient(135deg, #f59e0b, #fbbf24);
+      box-shadow:
+        0 6px 16px rgba(0,0,0,0.16),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+      transition:
+        transform 0.15s ease,
+        filter 0.2s ease,
+        box-shadow 0.2s ease;
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Inter, system-ui, sans-serif;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .toolbar-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+      box-shadow:
+        0 0 18px rgba(251,191,36,0.42),
+        0 10px 28px rgba(0,0,0,0.24);
+    }
+
+    .toolbar-btn.active {
+      filter: brightness(1.08);
+      box-shadow:
+        0 0 20px rgba(251,191,36,0.50),
+        0 10px 28px rgba(0,0,0,0.26);
+    }
+
+    .average-row td {
+      background: rgba(251,191,36,0.08);
+      font-weight: 800;
+    }
+
+    .back-link,
+    .toolbar-btn,
+    .details-btn,
+    .device-details-btn {
+      font-family: Inter, system-ui, sans-serif;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
     @media (max-width: 720px) {
       .page {
         padding: 14px;
@@ -310,6 +445,48 @@
         font-size: 24px;
       }
     }
+
+    @media (max-width: 720px) {
+      .settings-modal {
+        padding: 10px;
+        align-items: start;
+      }
+
+      .settings-modal-card {
+        width: 100%;
+        max-height: calc(100dvh - 20px);
+        border-radius: 18px;
+      }
+
+      .settings-modal-head {
+        padding: 14px 16px;
+      }
+
+      .settings-modal-head h2 {
+        font-size: 18px;
+      }
+
+      .settings-modal-body {
+        padding: 14px 16px 16px;
+        max-height: calc(100dvh - 86px);
+      }
+
+      .settings-detail-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        padding: 10px 11px;
+      }
+
+      .settings-detail-row span:first-child {
+        font-size: 12px;
+      }
+
+      .settings-detail-row span:last-child {
+        text-align: left;
+        font-size: 14px;
+      }
+    }
+
   </style>
 </head>
 
@@ -336,6 +513,11 @@
           <option value="energy_drift_desc">Отклонение энергии: по убыванию</option>
           <option value="energy_drift_asc">Отклонение энергии: по возрастанию</option>
         </select>
+
+        <button id="averageByDeviceBtn" class="toolbar-btn" type="button">
+          Среднее по устройствам
+        </button>
+
       </div>
 
       <div class="table-wrap">
@@ -349,6 +531,7 @@
               <th>Пресет нагрузки</th>
               <th>Тел</th>
               <th>FPS</th>
+              <th>Время, c</th>
               <th>Физика, ms</th>
               <th>Среднее, ms</th>
               <th>Нагрузка физики</th>
@@ -372,6 +555,17 @@
       </div>
 
       <div id="settingsModalBody" class="settings-modal-body"></div>
+    </div>
+  </div>
+
+  <div id="deviceModal" class="settings-modal" hidden>
+    <div class="settings-modal-card">
+      <div class="settings-modal-head">
+        <h2>Информация об устройстве</h2>
+        <button id="closeDeviceModal" type="button">×</button>
+      </div>
+
+      <div id="deviceModalBody" class="settings-modal-body"></div>
     </div>
   </div>
 

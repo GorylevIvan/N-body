@@ -171,6 +171,23 @@
       pointer-events: none;
     }
 
+    .settings-panel,
+    .fps-panel,
+    .stats-panel {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
+        var(--glass);
+    }
+
+    .settings-panel,
+    .fps-panel,
+    .stats-panel {
+      background:
+        radial-gradient(circle at 70% 18%, rgba(167,139,250,0.14), transparent 34%),
+        linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.025)),
+        var(--glass);
+    }
+
     .left-column {
       height: 100%;
       min-height: 0;
@@ -199,9 +216,6 @@
       display: flex;
       flex-direction: column;
 
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
-        var(--glass);
     }
 
     .left-column .settings-panel {
@@ -234,6 +248,21 @@
       margin-right: 0;
 
       background: transparent;
+    }
+
+    .left-column,
+    .settings-panel,
+    .settings-list {
+      overflow-x: hidden;
+      max-width: 100%;
+    }
+
+    .settings-panel {
+      box-sizing: border-box;
+    }
+
+    .settings-panel * {
+      max-width: 100%;
     }
 
     .group {
@@ -907,6 +936,238 @@
       background: linear-gradient(135deg, #f59e0b, #fbbf24);
     }
 
+    .real-select-hidden {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 1px;
+      height: 1px;
+    }
+
+    .custom-select {
+      position: relative;
+      width: 100%;
+      z-index: 20;
+      margin-bottom: 4px;
+    }
+
+    .custom-select.open {
+      z-index: 500;
+    }
+
+    .custom-select-btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 42px 10px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)),
+        rgba(13, 10, 45, 0.72);
+
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.03),
+        0 6px 18px rgba(0,0,0,0.14);
+
+      transition:
+        border-color 0.2s ease,
+        filter 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .custom-select-btn:hover {
+      filter: brightness(1.06);
+      border-color: rgba(255,255,255,0.16);
+    }
+
+    .custom-select-btn:focus {
+      outline: none;
+      border-color: rgba(103,232,249,0.34);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.04),
+        0 0 0 3px rgba(103,232,249,0.10),
+        0 8px 24px rgba(0,0,0,0.18);
+    }
+
+    .custom-select-btn::after {
+      content: "";
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid rgba(245,243,255,0.85);
+      border-bottom: 2px solid rgba(245,243,255,0.85);
+      transform: translateY(-65%) rotate(45deg);
+      transition: transform 0.18s ease;
+    }
+
+    .custom-select.open .custom-select-btn::after {
+      transform: translateY(-35%) rotate(225deg);
+    }
+
+    .settings-actions {
+      margin-top: 18px;
+      padding-bottom: 18px;
+      width: 100%;
+    }
+
+    .settings-actions .btn {
+      width: 100%;
+    }
+
+    .settings-actions .btn,
+    .results-action-btn {
+      width: 100%;
+      min-height: 54px;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 18px;
+
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: 0;
+
+      color: #2a1300;
+      background: linear-gradient(135deg, #f59e0b, #fbbf24);
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      text-decoration: none;
+
+      cursor: pointer;
+
+      box-shadow:
+        0 6px 16px rgba(0,0,0,0.16),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+
+      transition:
+        transform 0.15s ease,
+        filter 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .settings-actions .btn:hover,
+    .results-action-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+      box-shadow:
+        0 0 18px rgba(251, 191, 36, 0.42),
+        0 10px 28px rgba(0,0,0,0.28);
+    }
+
+    .settings-actions .btn:active,
+    .results-action-btn:active {
+      transform: translateY(0) scale(0.98);
+    }
+
+    .settings-actions {
+      margin-top: 18px;
+      padding: 14px 10px 36px;
+      width: 100%;
+      overflow: visible;
+    }
+
+    .settings-actions .btn {
+      max-width: calc(100% - 20px);
+      margin: 0 auto;
+    }
+
+    .custom-select-menu {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 8px);
+      z-index: 501;
+
+      display: none;
+      padding: 8px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.12);
+
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025)),
+        rgba(22, 15, 70, 0.96);
+
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+
+      box-shadow:
+        0 18px 48px rgba(0,0,0,0.34),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+
+      max-height: 260px;
+      overflow-y: auto;
+      overflow-x: hidden;
+
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .custom-select-menu::-webkit-scrollbar {
+      display: none;
+    }
+
+    .custom-select.open .custom-select-menu {
+      display: grid;
+      gap: 4px;
+    }
+
+    .custom-select-option {
+      width: 100%;
+      min-height: 38px;
+      padding: 9px 11px;
+      border: none;
+      border-radius: 12px;
+      position: relative;
+      z-index: 2;
+
+      color: rgba(245,243,255,0.88);
+      background: transparent;
+
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: left;
+
+      cursor: pointer;
+
+      transition:
+        background 0.15s ease,
+        color 0.15s ease,
+        transform 0.15s ease;
+    }
+
+    .custom-select-option:hover {
+      color: #ffffff;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .custom-select-option.active {
+      color: #ffffff;
+      background:
+        linear-gradient(135deg, rgba(103,232,249,0.16), rgba(167,139,250,0.18));
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.06),
+        0 6px 18px rgba(0,0,0,0.12);
+    }
+
+    .custom-select-option:active {
+      transform: scale(0.985);
+    }
+
+
     @media (max-width: 720px) {
       .fullscreen-controls {
         bottom: 12px;
@@ -1020,7 +1281,18 @@
 
       .settings-list {
         min-height: 0;
-        overflow: auto;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+        overflow-x: clip;
+        padding-right: 0;
+        margin-right: 0;
+      }
+
+      @supports not (overflow-x: clip) {
+        .settings-list {
+          overflow-x: hidden;
+        }
       }
 
       .group {
@@ -1159,21 +1431,75 @@
         line-height: 1.1;
         word-break: break-word;
       }
+
+      .settings-actions .btn,
+      .results-action-btn {
+        width: 100%;
+        min-height: 42px;
+        padding: 8px 10px;
+        border-radius: 15px;
+
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      .controls-row .btn {
+        min-height: 38px;
+        padding: 7px 5px;
+        border-radius: 13px;
+
+        font-size: 11px;
+        line-height: 1.1;
+      }
+      
     }
 
     @media (max-width: 900px) and (orientation: landscape) {
       .app {
+        height: 100dvh;
+        min-height: 100dvh;
+
         padding: 8px;
         padding-bottom: max(8px, env(safe-area-inset-bottom));
         gap: 8px;
 
         grid-template-columns:
-          minmax(195px, 28vw)
-          minmax(0, 1fr)
-          minmax(190px, 25vw);
+          minmax(220px, 25vw)
+          minmax(300px, 1fr)
+          minmax(220px, 24vw);
+
+        grid-template-rows: 1fr;
+        align-items: stretch;
+        overflow: hidden;
       }
 
       .left-column,
+      .center-column,
+      .right-column {
+        height: 100%;
+        min-height: 0;
+        align-self: stretch;
+      }
+
+      .left-column {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 0;
+        margin: 0;
+      }
+
+      .settings-panel {
+        flex: 1 0 auto;
+        min-height: 100%;
+        height: auto;
+        margin-top: 0;
+        padding: 12px;
+      }
+
       .fps-panel,
       .stats-panel {
         padding: 12px;
@@ -1185,10 +1511,6 @@
 
       .panel-title {
         font-size: 16px;
-      }
-
-      .fps-value {
-        font-size: 20px;
       }
 
       .right-column {
@@ -1227,7 +1549,7 @@
       }
 
       .stat-item .v {
-        font-size: 13px;
+        font-size: 14px;
       }
 
       .controls-row .btn {
@@ -1236,172 +1558,38 @@
         padding: 8px 6px;
       }
 
-      .stat-item .v {
-        font-size: 14px;
+      .settings-actions .btn,
+      .results-action-btn {
+        width: 100%;
+        min-height: 42px;
+        padding: 8px 10px;
+        border-radius: 15px;
+
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: 0;
       }
-    }
 
-    .real-select-hidden {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-      width: 1px;
-      height: 1px;
-    }
+      .controls-row .btn {
+        min-height: 38px;
+        padding: 7px 5px;
+        border-radius: 13px;
 
-    .custom-select {
-      position: relative;
-      width: 100%;
-      z-index: 20;
-      margin-bottom: 4px;
-    }
+        font-size: 11px;
+        line-height: 1.1;
+      }
 
-    .custom-select.open {
-      z-index: 500;
-    }
-
-    .custom-select-btn {
-      width: 100%;
-      min-height: 44px;
-      padding: 10px 42px 10px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      color: var(--text);
-      font-family: Inter, system-ui, sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      text-align: left;
-      cursor: pointer;
-
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)),
-        rgba(13, 10, 45, 0.72);
-
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.03),
-        0 6px 18px rgba(0,0,0,0.14);
-
-      transition:
-        border-color 0.2s ease,
-        filter 0.2s ease,
-        box-shadow 0.2s ease;
-    }
-
-    .custom-select-btn:hover {
-      filter: brightness(1.06);
-      border-color: rgba(255,255,255,0.16);
-    }
-
-    .custom-select-btn:focus {
-      outline: none;
-      border-color: rgba(103,232,249,0.34);
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.04),
-        0 0 0 3px rgba(103,232,249,0.10),
-        0 8px 24px rgba(0,0,0,0.18);
-    }
-
-    .custom-select-btn::after {
-      content: "";
-      position: absolute;
-      right: 16px;
-      top: 50%;
-      width: 8px;
-      height: 8px;
-      border-right: 2px solid rgba(245,243,255,0.85);
-      border-bottom: 2px solid rgba(245,243,255,0.85);
-      transform: translateY(-65%) rotate(45deg);
-      transition: transform 0.18s ease;
-    }
-
-    .custom-select.open .custom-select-btn::after {
-      transform: translateY(-35%) rotate(225deg);
-    }
-
-    .custom-select-menu {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: calc(100% + 8px);
-      z-index: 501;
-
-      display: none;
-      padding: 8px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.12);
-
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025)),
-        rgba(22, 15, 70, 0.96);
-
-      backdrop-filter: blur(18px) saturate(140%);
-      -webkit-backdrop-filter: blur(18px) saturate(140%);
-
-      box-shadow:
-        0 18px 48px rgba(0,0,0,0.34),
-        inset 0 1px 0 rgba(255,255,255,0.08);
-
-      max-height: 260px;
-      overflow-y: auto;
-      overflow-x: hidden;
-
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
-
-    .custom-select-menu::-webkit-scrollbar {
-      display: none;
-    }
-
-    .custom-select.open .custom-select-menu {
-      display: grid;
-      gap: 4px;
-    }
-
-    .custom-select-option {
-      width: 100%;
-      min-height: 38px;
-      padding: 9px 11px;
-      border: none;
-      border-radius: 12px;
-      position: relative;
-      z-index: 2;
-
-      color: rgba(245,243,255,0.88);
-      background: transparent;
-
-      font-family: Inter, system-ui, sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      text-align: left;
-
-      cursor: pointer;
-
-      transition:
-        background 0.15s ease,
-        color 0.15s ease,
-        transform 0.15s ease;
-    }
-
-    .custom-select-option:hover {
-      color: #ffffff;
-      background: rgba(255,255,255,0.08);
-    }
-
-    .custom-select-option.active {
-      color: #ffffff;
-      background:
-        linear-gradient(135deg, rgba(103,232,249,0.16), rgba(167,139,250,0.18));
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.06),
-        0 6px 18px rgba(0,0,0,0.12);
-    }
-
-    .custom-select-option:active {
-      transform: scale(0.985);
     }
 
     @media (max-width: 720px) and (orientation: portrait) {
+
+      .left-column,
+      .fps-panel,
+      .stats-panel {
+        padding: 12px;
+      }
+
       .controls-row {
         grid-template-columns: 1fr;
       }
@@ -1436,6 +1624,181 @@
         font-size: 22px;
       }
     }
+
+    @media (max-width: 770px) and (orientation: landscape) {
+      .app {
+        padding: 6px;
+        padding-bottom: max(6px, env(safe-area-inset-bottom));
+        gap: 6px;
+
+        grid-template-columns:
+          minmax(175px, 27vw)
+          minmax(250px, 1fr)
+          minmax(175px, 26vw);
+
+        grid-template-rows: 1fr;
+        overflow: hidden;
+      }
+
+      .left-column,
+      .center-column,
+      .right-column {
+        min-width: 0;
+        height: 100%;
+        min-height: 0;
+      }
+
+      .settings-panel,
+      .fps-panel,
+      .stats-panel {
+        padding: 10px;
+        border-radius: 20px;
+      }
+
+      .settings-title {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+
+      .group {
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 16px;
+      }
+
+      .group h3 {
+        font-size: 14px;
+        margin-bottom: 12px;
+      }
+
+      .field {
+        margin-bottom: 14px;
+      }
+
+      label {
+        font-size: 12px;
+        margin-bottom: 7px;
+      }
+
+      .custom-select-btn,
+      input[type="number"],
+      select {
+        min-height: 38px;
+        padding: 8px 34px 8px 10px;
+        font-size: 12px;
+        border-radius: 13px;
+      }
+
+      .custom-select-btn::after {
+        right: 13px;
+        width: 7px;
+        height: 7px;
+      }
+
+      .center-column {
+        gap: 6px;
+      }
+
+      .sim-panel {
+        border-radius: 18px;
+      }
+
+      .controls-row {
+        gap: 6px;
+      }
+
+      .controls-row .btn {
+        min-height: 38px;
+        font-size: 11px;
+        padding: 7px 5px;
+        border-radius: 13px;
+      }
+
+      .fullscreen-btn {
+        width: 34px;
+        height: 34px;
+        right: 8px;
+        bottom: 8px;
+        border-radius: 11px;
+      }
+
+      .right-column {
+        gap: 6px;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      .panel-title,
+      .cpu-graph-title,
+      .energy-graph-title {
+        font-size: 14px;
+        line-height: 1.1;
+        margin-bottom: 5px;
+      }
+
+      .fps-value,
+      .cpu-graph-value,
+      .energy-graph-value {
+        font-size: 18px;
+        margin-bottom: 5px;
+      }
+
+      .fps-panel {
+        min-height: 470px;
+      }
+
+      .fps-graph-wrap,
+      .cpu-graph-wrap,
+      .energy-graph-wrap {
+        min-height: 82px;
+        border-radius: 16px;
+      }
+
+      .stats-panel {
+        min-height: 150px;
+      }
+
+      .stat-item {
+        padding: 8px 9px;
+        border-radius: 13px;
+      }
+
+      .stat-item .k {
+        font-size: 8px;
+      }
+
+      .stat-item .v {
+        font-size: 12px;
+      }
+
+      .results-actions {
+        gap: 8px;
+      }
+
+      .settings-actions .btn,
+      .results-action-btn {
+        width: 100%;
+        min-height: 42px;
+        padding: 8px 10px;
+        border-radius: 15px;
+
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      .controls-row .btn {
+        min-height: 38px;
+        padding: 7px 5px;
+        border-radius: 13px;
+
+        font-size: 11px;
+        line-height: 1.1;
+      }
+      
+    }
+
   </style>
 </head>
 
@@ -1697,6 +2060,11 @@
           <div class="stat-item">
             <div class="k">Статус</div>
             <div class="v" id="statusStat">loading</div>
+          </div>
+
+          <div class="stat-item">
+            <div class="k">Время Симуляции</div>
+            <div class="v" id="elapsedTimeStat">0.0 c</div>
           </div>
 
           <div class="stat-item">
