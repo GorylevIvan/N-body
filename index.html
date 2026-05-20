@@ -1261,6 +1261,26 @@
       line-height: 1.45;
     }
 
+    .results-action-btn:disabled,
+    .results-action-btn.is-disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+      filter: grayscale(0.25);
+      transform: none;
+      box-shadow:
+        0 4px 12px rgba(0,0,0,0.14),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    .results-action-btn:disabled:hover,
+    .results-action-btn.is-disabled:hover {
+      transform: none;
+      filter: grayscale(0.25);
+      box-shadow:
+        0 4px 12px rgba(0,0,0,0.14),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
     @media (max-width: 1080px) and (orientation: portrait) {
       html,
       body {

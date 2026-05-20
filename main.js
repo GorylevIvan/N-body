@@ -227,6 +227,7 @@ let currentBodyCount = DEFAULTS.n;
 let simulationStartTime = null;
 let elapsedBeforePause = 0;
 let currentElapsedSeconds = 0;
+let hasBenchmarkStarted = false;
 
 let colorUpdateCounter = 0;
 let statsUpdateCounter = 0;
@@ -302,6 +303,20 @@ function syncCustomSelects() {
       );
     });
   });
+}
+
+function updateSaveResultButtonState() {
+  if (!saveResultBtn) return;
+
+  saveResultBtn.disabled = !hasBenchmarkStarted;
+
+  if (!hasBenchmarkStarted) {
+    saveResultBtn.title = "Сначала запустите симуляцию";
+    saveResultBtn.classList.add("is-disabled");
+  } else {
+    saveResultBtn.title = "";
+    saveResultBtn.classList.remove("is-disabled");
+  }
 }
 
 function updateSolverWarning() {
@@ -797,6 +812,8 @@ function startSimulation() {
   if (running) return;
 
   running = true;
+  hasBenchmarkStarted = true;
+  updateSaveResultButtonState();
   simulationStartTime = performance.now();
 
   statusStat.textContent = "работает";
@@ -825,6 +842,9 @@ function resetSystem() {
   elapsedBeforePause = 0;
   currentElapsedSeconds = 0;
   updateElapsedTimer();
+  hasBenchmarkStarted = false;
+  updateSaveResultButtonState();
+
   pauseSimulation();
   createEngine();
 }
@@ -1880,6 +1900,30 @@ function setupCustomSelects() {
 }
 
 async function saveBenchmarkResult() {
+
+  if (!hasBenchmarkStarted || currentElapsedSeconds <= 0) {
+    const oldText = saveResultBtn.textContent;
+    saveResultBtn.textContent = "Сначала старт";
+
+    setTimeout(() => {
+      saveResultBtn.textContent = oldText;
+      updateSaveResultButtonState();
+    }, 1400);
+
+    return;
+  }
+
+  if (!Number.isFinite(currentFPS) || currentFPS <= 0 || cachedPhysicsMs <= 0) {
+    const oldText = saveResultBtn.textContent;
+    saveResultBtn.textContent = "Нет данных";
+
+    setTimeout(() => {
+      saveResultBtn.textContent = oldText;
+    }, 1400);
+
+    return;
+  }
+
   if (!engine) return;
 
   const s = getSettings();
@@ -2020,6 +2064,7 @@ async function boot() {
     drawEnergyDriftGraph();
     setupCustomSelects()
     setupListeners();
+    updateSaveResultButtonState();
     startRenderLoop();
 
     kineticStat.textContent = engine.kinetic_energy().toFixed(2);

@@ -431,6 +431,77 @@
       letter-spacing: 0;
     }
 
+    .rotate-lock {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      padding: 24px;
+      place-items: center;
+
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(103,232,249,0.22), transparent 24%),
+        radial-gradient(circle at 80% 30%, rgba(167,139,250,0.22), transparent 26%),
+        radial-gradient(circle at 70% 85%, rgba(251,191,36,0.12), transparent 22%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2), var(--bg-3));
+    }
+
+    .rotate-lock-card {
+      width: min(420px, 100%);
+      padding: 26px 22px;
+      border-radius: 26px;
+      border: 1px solid rgba(255,255,255,0.12);
+
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025)),
+        rgba(33, 21, 95, 0.62);
+
+      box-shadow:
+        0 18px 60px rgba(0,0,0,0.34),
+        0 0 50px rgba(103,232,249,0.08);
+
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+
+      text-align: center;
+    }
+
+    .rotate-lock-icon {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 18px;
+      border-radius: 22px;
+
+      display: grid;
+      place-items: center;
+
+      font-size: 42px;
+      font-weight: 800;
+
+      color: #67e8f9;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(103,232,249,0.18), transparent 65%),
+        rgba(255,255,255,0.06);
+
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.08),
+        0 0 26px rgba(103,232,249,0.20);
+    }
+
+    .rotate-lock-card h1 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      line-height: 1.15;
+    }
+
+    .rotate-lock-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
     @media (max-width: 720px) {
       .page {
         padding: 14px;
@@ -487,10 +558,39 @@
       }
     }
 
+    @media (max-width: 1080px) and (orientation: portrait) {
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .page {
+        display: none;
+      }
+
+      .rotate-lock {
+        display: grid;
+      }
+    }
+
   </style>
 </head>
 
 <body>
+
+  <div class="rotate-lock">
+    <div class="rotate-lock-card">
+      <div class="rotate-lock-icon">↻</div>
+      <h1>Поверните устройство</h1>
+      <p>
+        Таблица результатов предназначена для просмотра в горизонтальном режиме.
+        Поверните телефон, чтобы продолжить.
+      </p>
+    </div>
+  </div>
+
   <main class="page">
     <div class="topbar">
       <h1>Общие результаты бенчмарка</h1>
