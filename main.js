@@ -1665,10 +1665,23 @@ function getPhoneModelFromUserAgent() {
   const androidMatch = ua.match(/Android\s[\d.]+;\s([^;)]+)\)/i);
 
   if (androidMatch && androidMatch[1]) {
-    return androidMatch[1]
+    const model = androidMatch[1]
       .replace(/Build\/.*/i, "")
-      .replace(/wv/i, "")
+      .replace(/\bwv\b/i, "")
       .trim();
+
+    const badValues = [
+      "K",
+      "Mobile",
+      "Linux",
+      "Android",
+      "Unknown",
+      "",
+    ];
+
+    if (!badValues.includes(model)) {
+      return model;
+    }
   }
 
   if (/iPhone/i.test(ua)) return "iPhone";

@@ -523,11 +523,12 @@
       position: absolute;
       inset: -20%;
       background:
-        radial-gradient(circle at 58% 46%, rgba(103,232,249,0.09), transparent 16%),
-        radial-gradient(circle at 42% 55%, rgba(167,139,250,0.08), transparent 18%),
-        radial-gradient(circle at 70% 40%, rgba(255,255,255,0.03), transparent 14%);
+        radial-gradient(circle at 58% 46%, rgba(103,232,249,0.035), transparent 18%),
+        radial-gradient(circle at 42% 55%, rgba(167,139,250,0.03), transparent 20%),
+        radial-gradient(circle at 70% 40%, rgba(255,255,255,0.012), transparent 16%);
       pointer-events: none;
-      filter: blur(14px);
+      filter: blur(18px);
+      opacity: 0.65;
     }
 
     #canvas {
@@ -1670,7 +1671,6 @@
         font-size: 11px;
         line-height: 1.1;
       }
-
     }
 
     @media (max-width: 720px) and (orientation: portrait) {
@@ -1904,6 +1904,43 @@
 
       .rotate-lock {
         display: grid;
+      }
+    }
+
+    @media (max-width: 770px) and (orientation: landscape) {
+      .custom-select {
+        position: relative;
+        z-index: 30;
+      }
+
+      .custom-select.open {
+        z-index: 1000;
+      }
+
+      .custom-select-menu {
+        top: calc(100% + 6px);
+        width: 100%;
+        max-height: 150px;
+        padding: 6px;
+        border-radius: 14px;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      .custom-select-option {
+        min-height: 34px;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.15;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+
+      .custom-select-btn {
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
 

@@ -236,10 +236,16 @@
       word-break: break-word;
     }
 
+
     .table-wrap {
-      width: 100%;
-      max-height: calc(100dvh - 170px);
-      overflow: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .table-wrap::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
     }
 
     table {
@@ -574,6 +580,8 @@
         display: grid;
       }
     }
+
+
 
   </style>
 </head>
