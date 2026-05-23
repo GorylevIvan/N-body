@@ -238,8 +238,15 @@
 
 
     .table-wrap {
-      scrollbar-width: none;
-      -ms-overflow-style: none;
+      width: 100%;
+      max-width: 100%;
+      max-height: calc(100dvh - 170px);
+
+      overflow-x: auto;
+      overflow-y: auto;
+
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
     }
 
     .table-wrap::-webkit-scrollbar {
