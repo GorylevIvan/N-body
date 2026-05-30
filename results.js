@@ -287,13 +287,11 @@ function renderRows(rows) {
       tr.classList.add("average-row");
     }
 
-    const deviceDetailsButton = row.isAverageRow
-      ? formatMeasurementsCount(row.tests_count)
-      : `
-        <button class="device-details-btn" type="button" data-device-index="${index}">
-          Подробнее
-        </button>
-      `;
+    const deviceDetailsButton = `
+      <button class="device-details-btn" type="button" data-device-index="${index}">
+        Подробнее
+      </button>
+    `;
 
     const settingsDetailsButton = row.isAverageRow
       ? formatMeasurementsCount(row.tests_count)
